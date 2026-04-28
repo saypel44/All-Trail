@@ -1123,10 +1123,7 @@ body::before {
 .prc-download-btn:hover { background: var(--sky); color: #fff; }
 
 .prc-pdf-viewer { border-top: 1px solid var(--border); background: var(--surface); }
-.pdf-iframe { width: 100%; height: 560px; border: none; display: block;
-  /* Allow pinch-zoom inside the PDF on touch devices */
-  touch-action: auto;
-}
+.pdf-iframe { width: 100%; height: 560px; border: none; display: block; }
 .pdf-placeholder { padding: 36px 24px; text-align: center; color: var(--muted); }
 .pdf-ph-icon { font-size: 36px; margin-bottom: 10px; }
 .pdf-ph-text { font-size: 14px; margin-bottom: 6px; }
@@ -1443,11 +1440,9 @@ body::before {
 
 .pdf-iframe {
   width: 100%;
-  height: 80vh;
+  height: 80vh;   /* important for proper fit */
   border: none;
   display: block;
-  /* Allow pinch-to-zoom on iPad / touch devices */
-  touch-action: auto;
 }
 /* ══════════════════════════════════════
    HOME CTA BUTTON
@@ -1535,15 +1530,13 @@ body::before {
 /* Tables: touch momentum scroll on all devices */
 .table-box { -webkit-overflow-scrolling: touch; }
 
-/* iFrame wrappers: contained but touch-zoom allowed */
+/* iFrame wrappers: always contained, no overflow on any device */
 .prc-viewer,
 .prc-pdf-viewer,
 [id$="-pdf-viewer"] {
   width: 100%;
   box-sizing: border-box;
-  /* Do NOT use overflow:hidden here — it blocks pinch-zoom on iPad */
-  overflow: visible;
-  touch-action: auto;
+  overflow: hidden;
 }
 
 /* ── TABLET  ≤ 768px ─────────────────────────────────────────

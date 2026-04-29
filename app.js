@@ -4,136 +4,126 @@
 let currentUser = null;
 let currentAlarmHabit = null;
 
-/* ── helpers ── */
+/* ── Storage helpers ── */
 function _loadUsers() {
-  try { return JSON.parse(localStorage.getItem('qt_users')||'{}'); } catch(e){ return {}; }
+  try { return JSON.parse(localStorage.getItem('qt_users') || '{}'); } catch(e) { return {}; }
 }
 function _saveUsers(u) {
   localStorage.setItem('qt_users', JSON.stringify(u));
 }
-function _loadUserData(username) {
-  try { return JSON.parse(localStorage.getItem('qt_data_'+username)||'null'); } catch(e){ return null; }
-}
-function _saveUserData(username, data) {
-  localStorage.setItem('qt_data_'+username, JSON.stringify(data));
-}
+
+/* getUserData: always returns the live in-memory object for the current user.
+   On first call per session it hydrates from localStorage.
+   saveUserData() writes it back — call it after every mutation. */
+let _currentData = null;
 
 function getUserData() {
   if (!currentUser) return null;
-  let data = _loadUserData(currentUser.username);
-  if (!data) {
-    data = { logs:[], alarms:{}, habitEnabled:{}, selectedSounds:{}, customSounds:{}, checkInHistory:[] };
-    _saveUserData(currentUser.username, data);
+  if (!_currentData) {
+    try {
+      _currentData = JSON.parse(localStorage.getItem('qt_data_' + currentUser.username) || 'null');
+    } catch(e) { _currentData = null; }
+    if (!_currentData) {
+      _currentData = { logs:[], alarms:{}, habitEnabled:{}, selectedSounds:{}, customSounds:{}, checkInHistory:[] };
+    }
   }
-  return data;
+  return _currentData;
 }
 
-/* Call this after every mutation so changes persist */
 function saveUserData() {
   if (!currentUser || !_currentData) return;
-  _saveUserData(currentUser.username, _currentData);
+  localStorage.setItem('qt_data_' + currentUser.username, JSON.stringify(_currentData));
 }
-
-/* We keep one in-memory reference while a session is active so callers
-   can mutate it freely, then call saveUserData() to flush. */
-let _currentData = null;
-const _origGetUserData = getUserData;
-// Override getUserData to return the cached reference
-// and override saveUserData to write it back.
-(function(){
-  const _get = getUserData;
-  window._getUserDataFresh = _get;
-  getUserData = function() {
-    if (!currentUser) return null;
-    if (!_currentData) _currentData = _get();
-    return _currentData;
-  };
-  saveUserData = function() {
-    if (currentUser && _currentData) _saveUserData(currentUser.username, _currentData);
-  };
-})();
 
 /* ═══════════════════════════════════════
    AUTH
 ═══════════════════════════════════════ */
 function switchTab(t) {
-  document.getElementById('tab-login').style.display  = t==='login'?'':'none';
-  document.getElementById('tab-signup').style.display = t==='signup'?'':'none';
-  document.querySelectorAll('.auth-tab').forEach((el,i)=>{
-    el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='signup'));
+  document.getElementById('tab-login').style.display  = t === 'login' ? '' : 'none';
+  document.getElementById('tab-signup').style.display = t === 'signup' ? '' : 'none';
+  document.querySelectorAll('.auth-tab').forEach((el,i) => {
+    el.classList.toggle('active', (i===0 && t==='login') || (i===1 && t==='signup'));
   });
   clearAuthMsgs();
 }
 function clearAuthMsgs() {
-  ['li-msg','su-msg'].forEach(id=>{const el=document.getElementById(id);el.className='auth-msg';el.textContent='';});
+  ['li-msg','su-msg'].forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'auth-msg';
+    el.textContent = '';
+  });
 }
-function showMsg(id,text,type) {
-  const el=document.getElementById(id);el.textContent=text;el.className='auth-msg '+type;
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'auth-msg ' + type;
 }
-function togglePw(id,btn) {
-  const inp=document.getElementById(id);inp.type=inp.type==='password'?'text':'password';
-  btn.textContent=inp.type==='password'?'👁':'🙈';
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
 }
 function doSignup() {
-  const name=document.getElementById('su-name').value.trim();
-  const user=document.getElementById('su-user').value.trim().toLowerCase();
-  const pass=document.getElementById('su-pass').value;
-  if(!name||!user||!pass) return showMsg('su-msg','Please fill in all fields.','err');
-  if(user.length<3) return showMsg('su-msg','Username must be at least 3 characters.','err');
-  if(pass.length<6) return showMsg('su-msg','Password must be at least 6 characters.','err');
-  const users=_loadUsers();
-  if(users[user]) return showMsg('su-msg','That username is already taken.','err');
-  users[user]={name,pass};
+  const name = document.getElementById('su-name').value.trim();
+  const user = document.getElementById('su-user').value.trim().toLowerCase();
+  const pass = document.getElementById('su-pass').value;
+  if (!name || !user || !pass) return showMsg('su-msg', 'Please fill in all fields.', 'err');
+  if (user.length < 3) return showMsg('su-msg', 'Username must be at least 3 characters.', 'err');
+  if (pass.length < 6) return showMsg('su-msg', 'Password must be at least 6 characters.', 'err');
+  const users = _loadUsers();
+  if (users[user]) return showMsg('su-msg', 'That username is already taken.', 'err');
+  users[user] = { name, pass };
   _saveUsers(users);
-  showMsg('su-msg','Account created! Signing you in…','ok');
-  setTimeout(()=>launchApp({username:user,name}),900);
+  showMsg('su-msg', 'Account created! Signing you in…', 'ok');
+  setTimeout(() => launchApp({ username: user, name }), 900);
 }
 function doLogin() {
-  const user=document.getElementById('li-user').value.trim().toLowerCase();
-  const pass=document.getElementById('li-pass').value;
-  if(!user||!pass) return showMsg('li-msg','Please enter your username and password.','err');
-  const users=_loadUsers();
-  if(!users[user]||users[user].pass!==pass) return showMsg('li-msg','Incorrect username or password.','err');
-  launchApp({username:user,name:users[user].name});
+  const user = document.getElementById('li-user').value.trim().toLowerCase();
+  const pass = document.getElementById('li-pass').value;
+  if (!user || !pass) return showMsg('li-msg', 'Please enter your username and password.', 'err');
+  const users = _loadUsers();
+  if (!users[user] || users[user].pass !== pass) return showMsg('li-msg', 'Incorrect username or password.', 'err');
+  launchApp({ username: user, name: users[user].name });
 }
 function launchApp(user) {
-  currentUser=user;
-  _currentData=null; // reset so getUserData() loads fresh from storage
-  localStorage.setItem('qt_session', JSON.stringify({username: user.username}));
-  const firstName=user.name.split(' ')[0];
-  document.getElementById('greeting-name').textContent=firstName;
-  document.getElementById('hdr-avatar').textContent=user.name.charAt(0).toUpperCase();
-  document.getElementById('hdr-name').textContent=user.name;
+  currentUser = user;
+  _currentData = null; // clear cache so getUserData() re-loads from storage fresh
+  localStorage.setItem('qt_session', JSON.stringify({ username: user.username }));
+  const firstName = user.name.split(' ')[0];
+  document.getElementById('greeting-name').textContent = firstName;
+  document.getElementById('hdr-avatar').textContent = user.name.charAt(0).toUpperCase();
+  document.getElementById('hdr-name').textContent = user.name;
   document.getElementById('auth-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
   buildHabitCards();
   renderCalendar();
   renderTrends();
   startAlarmWatcher();
-  window.scrollTo(0,0);
+  window.scrollTo(0, 0);
 }
 function doLogout() {
   stopAlarmWatcher();
   saveUserData();
   localStorage.removeItem('qt_session');
-  currentUser=null;
-  _currentData=null;
+  currentUser = null;
+  _currentData = null;
   restartForm();
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('auth-screen').classList.add('active');
   clearAuthMsgs();
-  document.getElementById('li-user').value='';
-  document.getElementById('li-pass').value='';
+  document.getElementById('li-user').value = '';
+  document.getElementById('li-pass').value = '';
   switchTab('login');
-  window.scrollTo(0,0);
+  window.scrollTo(0, 0);
 }
-// Keyboard shortcuts – run after DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('li-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('li-pass').focus();});
-  document.getElementById('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-  document.getElementById('su-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doSignup();});
 
-  // Auto-login: restore session if user was previously logged in
+// Wire up keyboard shortcuts and auto-login after DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('li-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('li-pass').focus(); });
+  document.getElementById('li-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  document.getElementById('su-pass').addEventListener('keydown', e => { if(e.key==='Enter') doSignup(); });
+
+  // Auto-login: if a session was saved, skip the login screen
   try {
     const saved = localStorage.getItem('qt_session');
     if (saved) {

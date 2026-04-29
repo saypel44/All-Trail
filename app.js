@@ -72,7 +72,7 @@ function doSignup() {
   if (pass.length < 6) return showMsg('su-msg', 'Password must be at least 6 characters.', 'err');
   const users = _loadUsers();
   if (users[user]) return showMsg('su-msg', 'That username is already taken.', 'err');
-  users[user] = { name, pass };
+  users[user] = { name, pass, joinedAt: new Date().toISOString(), lastChanged: null };
   _saveUsers(users);
   showMsg('su-msg', 'Account created! Signing you in…', 'ok');
   setTimeout(() => launchApp({ username: user, name }), 900);
@@ -157,6 +157,7 @@ function showTab(t) {
   if(t==='trends') renderTrends();
   if(t==='calendar') renderCalendar();
   if(t==='history') renderHistory();
+  if(t==='settings') renderSettings();
 }
 
 /* ═══════════════════════════════════════
@@ -886,6 +887,143 @@ function buildInsight(logs,checkIns){
     :`Your check-in score is ${lastScore}/50 with an average logged sleep of ${sleepAvg.toFixed(1)} hrs. Increasing sleep consistency (not just duration) is likely to move this score higher.`;
   card.innerHTML=`<div class="chart-title">💡 Key insight</div><div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.7">${insight}</div>`;
   return card;
+}
+
+/* ═══════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════ */
+function renderSettings() {
+  if (!currentUser) return;
+  const users = _loadUsers();
+  const u = users[currentUser.username];
+  if (!u) return;
+
+  // Fill profile card
+  document.getElementById('settings-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('settings-name-display').textContent = currentUser.name;
+  document.getElementById('settings-user-display').textContent = '@' + currentUser.username;
+  document.getElementById('set-name').value = u.name;
+  document.getElementById('set-username').value = currentUser.username;
+  document.getElementById('set-pass').value = '';
+  document.getElementById('set-pass2').value = '';
+  document.getElementById('set-current-pass').value = '';
+  document.getElementById('settings-msg').className = 'auth-msg';
+  document.getElementById('settings-msg').textContent = '';
+
+  // Account record
+  const ud = getUserData();
+  const logCount = ud ? ud.logs.length : 0;
+  const checkCount = ud ? ud.checkInHistory.length : 0;
+  const joined = u.joinedAt ? new Date(u.joinedAt).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : 'Unknown';
+  const lastChanged = u.lastChanged ? new Date(u.lastChanged).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : 'Never';
+
+  document.getElementById('settings-record').innerHTML = `
+    <div style="display:grid;gap:8px">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border)">
+        <span style="color:var(--hint)">Full name</span><span style="color:var(--text);font-weight:500">${u.name}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border)">
+        <span style="color:var(--hint)">Username</span><span style="color:var(--text);font-weight:500">@${currentUser.username}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border)">
+        <span style="color:var(--hint)">Password</span><span style="color:var(--text);font-weight:500">••••••</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border)">
+        <span style="color:var(--hint)">Account created</span><span style="color:var(--text);font-weight:500">${joined}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border)">
+        <span style="color:var(--hint)">Last profile update</span><span style="color:var(--text);font-weight:500">${lastChanged}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border)">
+        <span style="color:var(--hint)">Total logs</span><span style="color:var(--green-dk);font-weight:600">${logCount}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0">
+        <span style="color:var(--hint)">Check-ins completed</span><span style="color:var(--green-dk);font-weight:600">${checkCount}</span>
+      </div>
+    </div>`;
+}
+
+function saveSettings() {
+  const newName     = document.getElementById('set-name').value.trim();
+  const newUsername = document.getElementById('set-username').value.trim().toLowerCase();
+  const newPass     = document.getElementById('set-pass').value;
+  const newPass2    = document.getElementById('set-pass2').value;
+  const currentPass = document.getElementById('set-current-pass').value;
+
+  const msgEl = document.getElementById('settings-msg');
+  const err = (t) => { msgEl.textContent = t; msgEl.className = 'auth-msg err'; };
+  const ok  = (t) => { msgEl.textContent = t; msgEl.className = 'auth-msg ok'; };
+
+  if (!newName || !newUsername) return err('Name and username cannot be empty.');
+  if (newUsername.length < 3) return err('Username must be at least 3 characters.');
+  if (!currentPass) return err('Please enter your current password to save changes.');
+
+  const users = _loadUsers();
+  const u = users[currentUser.username];
+  if (!u || u.pass !== currentPass) return err('Current password is incorrect.');
+
+  // Check new username isn't taken by someone else
+  if (newUsername !== currentUser.username && users[newUsername]) return err('That username is already taken.');
+
+  // Validate new password if provided
+  if (newPass || newPass2) {
+    if (newPass.length < 6) return err('New password must be at least 6 characters.');
+    if (newPass !== newPass2) return err('New passwords do not match.');
+  }
+
+  const finalPass = newPass || u.pass;
+
+  // If username changed: migrate the data key
+  if (newUsername !== currentUser.username) {
+    const existingData = localStorage.getItem('qt_data_' + currentUser.username);
+    if (existingData) {
+      localStorage.setItem('qt_data_' + newUsername, existingData);
+      localStorage.removeItem('qt_data_' + currentUser.username);
+    }
+    delete users[currentUser.username];
+  }
+
+  // Save updated user record
+  users[newUsername] = {
+    name: newName,
+    pass: finalPass,
+    joinedAt: u.joinedAt || new Date().toISOString(),
+    lastChanged: new Date().toISOString()
+  };
+  _saveUsers(users);
+
+  // Update session
+  currentUser = { username: newUsername, name: newName };
+  localStorage.setItem('qt_session', JSON.stringify({ username: newUsername }));
+
+  // Update header UI
+  document.getElementById('hdr-avatar').textContent = newName.charAt(0).toUpperCase();
+  document.getElementById('hdr-name').textContent = newName;
+  document.getElementById('greeting-name').textContent = newName.split(' ')[0];
+
+  ok('✅ Changes saved successfully!');
+  renderSettings();
+}
+
+function deleteAccount() {
+  if (!currentUser) return;
+  const confirmed = confirm(`Are you sure you want to permanently delete your account "@${currentUser.username}" and all your data? This cannot be undone.`);
+  if (!confirmed) return;
+  const pass = prompt('Enter your password to confirm:');
+  if (pass === null) return;
+  const users = _loadUsers();
+  if (!users[currentUser.username] || users[currentUser.username].pass !== pass) {
+    alert('Incorrect password. Account not deleted.');
+    return;
+  }
+  // Remove all data
+  localStorage.removeItem('qt_data_' + currentUser.username);
+  localStorage.removeItem('qt_session');
+  delete users[currentUser.username];
+  _saveUsers(users);
+  currentUser = null;
+  _currentData = null;
+  location.reload();
 }
 
 /* ═══════════════════════════════════════

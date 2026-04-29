@@ -25,7 +25,7 @@
     </div>
     <div class="auth-body">
       <div id="tab-login">
-        <div class="field"><label>Username</label><input id="li-user" type="text" placeholder="Enter your username" autocomplete="username"></div>
+        <div class="field"><label>UserID</label><input id="li-user" type="text" placeholder="Enter your username" autocomplete="username"></div>
         <div class="field"><label>Password</label><div class="pw-wrap"><input id="li-pass" type="password" placeholder="Enter your password" autocomplete="current-password"><button class="pw-toggle" onclick="togglePw('li-pass',this)" tabindex="-1">👁</button></div></div>
         <button class="auth-btn" onclick="doLogin()">Sign in →</button>
         <div id="li-msg" class="auth-msg"></div>
@@ -61,7 +61,6 @@
     <button class="nav-tab" onclick="showTab('history')">📖 History</button>
     <button class="nav-tab" onclick="showTab('calendar')">📅 Calendar</button>
     <button class="nav-tab" onclick="showTab('trends')">📈 Trends</button>
-    <button class="nav-tab" onclick="showTab('settings')">⚙️ Settings</button>
   </div>
 
   <!-- ── CHECK-IN TAB ── -->
@@ -215,70 +214,6 @@
     <p class="tracker-page-sub">Every habit you've logged, newest first. Tap 🗑 to delete an entry.</p>
     <div id="history-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
     <div id="history-content"></div>
-  </div>
-
-  <!-- ── SETTINGS TAB ── -->
-  <div id="tab-settings" class="tab-pane">
-    <p class="tracker-page-title">Settings</p>
-    <p class="tracker-page-sub">Your account details. All changes are saved to this device.</p>
-
-    <!-- Profile card -->
-    <div class="q-card" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
-        <div id="settings-avatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#2EBF8E);color:#fff;font-size:22px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>
-        <div>
-          <div id="settings-name-display" style="font-size:16px;font-weight:600;color:var(--text)"></div>
-          <div id="settings-user-display" style="font-size:12px;color:var(--hint);margin-top:2px"></div>
-        </div>
-      </div>
-
-      <div class="field">
-        <label>Full name</label>
-        <input id="set-name" type="text" placeholder="Your full name">
-      </div>
-      <div class="field">
-        <label>Username</label>
-        <input id="set-username" type="text" placeholder="Username (min 3 chars)" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>New password <span style="font-weight:400;color:var(--hint)">(leave blank to keep current)</span></label>
-        <div class="pw-wrap">
-          <input id="set-pass" type="password" placeholder="New password (min 6 chars)" autocomplete="new-password">
-          <button class="pw-toggle" onclick="togglePw('set-pass',this)" tabindex="-1">👁</button>
-        </div>
-      </div>
-      <div class="field">
-        <label>Confirm new password</label>
-        <div class="pw-wrap">
-          <input id="set-pass2" type="password" placeholder="Repeat new password" autocomplete="new-password">
-          <button class="pw-toggle" onclick="togglePw('set-pass2',this)" tabindex="-1">👁</button>
-        </div>
-      </div>
-      <div class="field">
-        <label>Current password <span style="font-weight:400;color:var(--hint)">(required to save changes)</span></label>
-        <div class="pw-wrap">
-          <input id="set-current-pass" type="password" placeholder="Enter your current password" autocomplete="current-password">
-          <button class="pw-toggle" onclick="togglePw('set-current-pass',this)" tabindex="-1">👁</button>
-        </div>
-      </div>
-      <button class="auth-btn" onclick="saveSettings()" style="margin-top:4px">Save changes</button>
-      <div id="settings-msg" class="auth-msg"></div>
-    </div>
-
-    <!-- Account info record -->
-    <div class="q-card">
-      <div class="q-num">Account record</div>
-      <p class="q-title" style="margin-bottom:14px">Saved on this device</p>
-      <div id="settings-record" style="font-size:13px;color:var(--muted);line-height:2"></div>
-    </div>
-
-    <!-- Danger zone -->
-    <div class="q-card" style="border-color:rgba(192,57,43,0.2);margin-top:12px">
-      <div class="q-num" style="color:var(--red)">Danger zone</div>
-      <p class="q-title" style="margin-bottom:14px">Delete all my data</p>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">This permanently deletes all your logs, check-ins, and account from this device. Cannot be undone.</p>
-      <button onclick="deleteAccount()" style="width:100%;padding:11px;background:var(--red-lt);border:1px solid rgba(192,57,43,0.3);border-radius:var(--rsm);font-size:13px;font-weight:500;color:var(--red);cursor:pointer;font-family:'Sora',sans-serif;transition:all .2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='var(--red-lt)';this.style.color='var(--red)'">🗑 Delete my account</button>
-    </div>
   </div>
 </div>
 

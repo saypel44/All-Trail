@@ -98,6 +98,7 @@ function launchApp(user) {
   buildHabitCards();
   renderCalendar();
   renderTrends();
+  renderHistory();
   startAlarmWatcher();
   window.scrollTo(0, 0);
 }
@@ -147,6 +148,7 @@ function showTab(t) {
     if(b.textContent.toLowerCase().includes(t.replace('-',' '))||
        (t==='check-in'&&b.textContent.includes('Check'))||
        (t==='tracker'&&b.textContent.includes('Habit'))||
+       (t==='history'&&b.textContent.includes('History'))||
        (t==='calendar'&&b.textContent.includes('Calendar'))||
        (t==='trends'&&b.textContent.includes('Trends'))) {
       b.classList.add('active');
@@ -154,6 +156,7 @@ function showTab(t) {
   });
   if(t==='trends') renderTrends();
   if(t==='calendar') renderCalendar();
+  if(t==='history') renderHistory();
 }
 
 /* ═══════════════════════════════════════
@@ -551,6 +554,7 @@ function logHabit(id){
   if(btn){const orig=btn.textContent;btn.textContent='✅ Saved!';btn.style.background='var(--green-dk)';setTimeout(()=>{btn.textContent=orig;btn.style.background='';},1500);}
   renderCalendar();
   renderTrends();
+  renderHistory();
 }
 
 /* ═══════════════════════════════════════
@@ -882,6 +886,96 @@ function buildInsight(logs,checkIns){
     :`Your check-in score is ${lastScore}/50 with an average logged sleep of ${sleepAvg.toFixed(1)} hrs. Increasing sleep consistency (not just duration) is likely to move this score higher.`;
   card.innerHTML=`<div class="chart-title">💡 Key insight</div><div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.7">${insight}</div>`;
   return card;
+}
+
+/* ═══════════════════════════════════════
+   HISTORY
+═══════════════════════════════════════ */
+let historyFilter = 'all';
+
+function renderHistory() {
+  const content = document.getElementById('history-content');
+  const filterWrap = document.getElementById('history-filter');
+  if (!content || !filterWrap) return;
+
+  const ud = getUserData();
+  if (!ud || !ud.logs.length) {
+    filterWrap.innerHTML = '';
+    content.innerHTML = `<div class="no-data-msg"><div class="no-data-icon">📖</div><div>No logs yet.</div><div style="margin-top:6px;font-size:12px">Log habits in the Tracker tab and they'll appear here.</div></div>`;
+    return;
+  }
+
+  // Build filter buttons
+  const habitIds = [...new Set(ud.logs.map(l => l.habitId))];
+  filterWrap.innerHTML = '';
+  const allBtn = document.createElement('button');
+  allBtn.className = 'sound-btn' + (historyFilter === 'all' ? ' sel' : '');
+  allBtn.textContent = '🗂 All';
+  allBtn.onclick = () => { historyFilter = 'all'; renderHistory(); };
+  filterWrap.appendChild(allBtn);
+  HABITS.filter(h => habitIds.includes(h.id)).forEach(h => {
+    const btn = document.createElement('button');
+    btn.className = 'sound-btn' + (historyFilter === h.id ? ' sel' : '');
+    btn.textContent = h.icon + ' ' + h.name;
+    btn.onclick = () => { historyFilter = h.id; renderHistory(); };
+    filterWrap.appendChild(btn);
+  });
+
+  // Filter + sort logs newest first
+  const logs = ud.logs
+    .filter(l => historyFilter === 'all' || l.habitId === historyFilter)
+    .slice()
+    .sort((a, b) => b.id - a.id);
+
+  // Group by date
+  const byDate = {};
+  logs.forEach(l => {
+    if (!byDate[l.date]) byDate[l.date] = [];
+    byDate[l.date].push(l);
+  });
+
+  content.innerHTML = '';
+  Object.keys(byDate).sort((a,b) => b.localeCompare(a)).forEach(dateStr => {
+    // Date heading
+    const heading = document.createElement('div');
+    const d = new Date(dateStr + 'T12:00:00');
+    const isToday = dateStr === new Date().toISOString().split('T')[0];
+    const isYesterday = dateStr === new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const label = isToday ? 'Today' : isYesterday ? 'Yesterday' : d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
+    heading.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--hint);letter-spacing:.07em;text-transform:uppercase;padding:16px 0 8px;border-top:.5px solid var(--border);margin-top:4px">${label}</div>`;
+    content.appendChild(heading);
+
+    // Entries for this date
+    byDate[dateStr].forEach(l => {
+      const item = document.createElement('div');
+      item.className = 'log-entry-item';
+      item.style.cssText = 'background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px';
+      item.innerHTML = `
+        <div class="log-entry-icon" style="flex-shrink:0">${l.habitIcon}</div>
+        <div class="log-entry-meta" style="flex:1;min-width:0">
+          <div class="log-entry-habit">${l.habitName}</div>
+          <div class="log-entry-dur">
+            <strong>${l.duration} ${l.unit}</strong>
+            ${l.startTime ? `<span style="color:var(--hint)"> · ${l.startTime}${l.endTime ? '–'+l.endTime : ''}</span>` : ''}
+          </div>
+          ${l.note ? `<div class="log-entry-note" style="margin-top:4px">💬 ${l.note}</div>` : ''}
+        </div>
+        <button onclick="deleteLog(${l.id})" title="Delete this entry" style="background:none;border:none;cursor:pointer;color:var(--hint);font-size:16px;padding:2px 4px;flex-shrink:0;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--hint)'">🗑</button>`;
+      content.appendChild(item);
+    });
+  });
+}
+
+function deleteLog(logId) {
+  const ud = getUserData();
+  if (!ud) return;
+  const idx = ud.logs.findIndex(l => l.id === logId);
+  if (idx === -1) return;
+  ud.logs.splice(idx, 1);
+  saveUserData();
+  renderHistory();
+  renderCalendar();
+  renderTrends();
 }
 
 /* ═══════════════════════════════════════

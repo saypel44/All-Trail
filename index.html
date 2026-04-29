@@ -58,6 +58,7 @@
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showTab('check-in')">📋 Check-In</button>
     <button class="nav-tab" onclick="showTab('tracker')">⏰ Habit Tracker</button>
+    <button class="nav-tab" onclick="showTab('history')">📖 History</button>
     <button class="nav-tab" onclick="showTab('calendar')">📅 Calendar</button>
     <button class="nav-tab" onclick="showTab('trends')">📈 Trends</button>
   </div>
@@ -205,6 +206,14 @@
       <button class="export-btn" onclick="exportCSV()">📄 Export CSV</button>
     </div>
     <div id="trends-content"></div>
+  </div>
+
+  <!-- ── HISTORY TAB ── -->
+  <div id="tab-history" class="tab-pane">
+    <p class="tracker-page-title">Log History</p>
+    <p class="tracker-page-sub">Every habit you've logged, newest first. Tap 🗑 to delete an entry.</p>
+    <div id="history-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div id="history-content"></div>
   </div>
 </div>
 

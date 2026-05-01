@@ -166,102 +166,27 @@
 
   <!-- ── TRACKER TAB ── -->
   <div id="tab-tracker" class="tab-pane">
-    <p class="tracker-page-title">Log an Activity</p>
-    <p class="tracker-page-sub">Pick a category, set the time, and save — your log appears on the calendar below.</p>
-
-    <!-- Quick log form -->
-    <div class="log-form-card" id="log-form-card">
-      <!-- Category row -->
-      <div class="lf-section-lbl">Category</div>
-      <div class="lf-cats" id="lf-cats">
-        <button type="button" class="lf-cat-btn" data-cat="Sleep" data-icon="🌙" onclick="lfSelectCat(this)">🌙 Sleep</button>
-        <button type="button" class="lf-cat-btn" data-cat="Work" data-icon="💻" onclick="lfSelectCat(this)">💻 Work</button>
-        <button type="button" class="lf-cat-btn" data-cat="Exercise" data-icon="🏃" onclick="lfSelectCat(this)">🏃 Exercise</button>
-        <button type="button" class="lf-cat-btn" data-cat="Screen Use" data-icon="📱" onclick="lfSelectCat(this)">📱 Screen Use</button>
-        <button type="button" class="lf-cat-btn" data-cat="Reading" data-icon="📚" onclick="lfSelectCat(this)">📚 Reading</button>
-        <button type="button" class="lf-cat-btn" data-cat="Meditation" data-icon="🧘" onclick="lfSelectCat(this)">🧘 Meditation</button>
-        <button type="button" class="lf-cat-btn" data-cat="Meals" data-icon="🍽" onclick="lfSelectCat(this)">🍽 Meals</button>
-        <button type="button" class="lf-cat-btn" data-cat="Studies" data-icon="📖" onclick="lfSelectCat(this)">📖 Studies</button>
-        <button type="button" class="lf-cat-btn lf-cat-other" data-cat="" data-icon="✍" onclick="lfSelectCat(this)">✍ Other</button>
-      </div>
-      <input type="text" class="aa-custom-input" id="lf-custom" placeholder="Custom activity name…" style="margin-top:8px;display:none" oninput="lfCustomTyped()">
-
-      <!-- Date picker -->
-      <div class="lf-section-lbl" style="margin-top:14px">Date</div>
-      <input type="date" id="lf-date" class="lf-date-input">
-
-      <!-- Time range -->
-      <div class="lf-section-lbl" style="margin-top:14px">Time</div>
-      <div class="log-ampm-row" style="gap:10px">
-        <div class="ampm-field" style="flex:1">
-          <label>Start</label>
-          <div class="ampm-wrap">
-            <input class="ampm-hour" id="lf-start-h" type="number" min="1" max="12" value="8" placeholder="8">
-            <span class="ampm-sep">:</span>
-            <input class="ampm-min" id="lf-start-m" type="number" min="0" max="59" value="00" placeholder="00">
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="lf-start-am" onclick="lfSetAmPm('start','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="lf-start-pm" onclick="lfSetAmPm('start','PM')">PM</button>
-            </div>
-          </div>
-        </div>
-        <div class="ampm-arrow" style="padding-bottom:8px;align-self:flex-end">→</div>
-        <div class="ampm-field" style="flex:1">
-          <label>End</label>
-          <div class="ampm-wrap">
-            <input class="ampm-hour" id="lf-end-h" type="number" min="1" max="12" value="9" placeholder="9">
-            <span class="ampm-sep">:</span>
-            <input class="ampm-min" id="lf-end-m" type="number" min="0" max="59" value="00" placeholder="00">
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="lf-end-am" onclick="lfSetAmPm('end','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="lf-end-pm" onclick="lfSetAmPm('end','PM')">PM</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="diff-display" id="lf-diff" style="margin-top:8px"></div>
-
-      <!-- Note -->
-      <div class="lf-section-lbl" style="margin-top:14px">Note <span style="font-weight:400;color:var(--hint)">(optional)</span></div>
-      <textarea class="log-note" id="lf-note" rows="2" placeholder="Add a note…"></textarea>
-
-      <!-- Set reminder toggle -->
-      <div class="lf-reminder-row">
-        <label class="lf-reminder-lbl">
-          <input type="checkbox" id="lf-reminder-check" onchange="lfToggleReminder()"> ⏰ Set reminder alarm
-        </label>
-        <div id="lf-reminder-sound" style="display:none;margin-top:10px">
-          <div class="lf-section-lbl">Alarm sound</div>
-          <div class="sound-opts">
-            <button class="sound-btn sel" data-sound="bell" onclick="lfSelectSound(this)">🔔 Bell</button>
-            <button class="sound-btn" data-sound="chime" onclick="lfSelectSound(this)">🎵 Chime</button>
-            <button class="sound-btn" data-sound="nature" onclick="lfSelectSound(this)">🌿 Nature</button>
-            <button class="sound-btn" data-sound="soft" onclick="lfSelectSound(this)">🎶 Soft Tone</button>
-            <button class="upload-sound-btn" onclick="document.getElementById('lf-sound-upload').click()">📎 My Sound</button>
-            <input type="file" id="lf-sound-upload" accept="audio/*" style="display:none" onchange="lfUploadSound(this)">
-          </div>
-        </div>
-      </div>
-
-      <button class="auth-btn" style="margin-top:16px" onclick="lfSaveLog()">Save Log ✓</button>
-      <div id="lf-msg" class="auth-msg" style="margin-top:10px"></div>
+    <!-- Empty state with centered + button -->
+    <div class="tracker-empty-state" id="tracker-empty-state">
+      <div class="tracker-empty-icon">📋</div>
+      <h3 class="tracker-empty-title">No schedules yet</h3>
+      <p class="tracker-empty-sub">Tap the button below to add your first scheduled activity</p>
+      <button class="tracker-fab-center" onclick="openScheduleModal()" title="Add Schedule">
+        <span class="tracker-fab-plus">＋</span>
+        <span class="tracker-fab-label">Add Schedule</span>
+      </button>
     </div>
 
-    <!-- Mini calendar below the form -->
-    <div style="margin-top:24px">
-      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:12px">📅 Your logged days</div>
-      <div class="calendar-wrap">
-        <div class="cal-header">
-          <button class="cal-nav" onclick="changeMonth2(-1)">‹</button>
-          <span class="cal-month" id="cal2-month-label"></span>
-          <button class="cal-nav" onclick="changeMonth2(1)">›</button>
+    <!-- Schedule list (shown when schedules exist) -->
+    <div id="tracker-schedules-wrap" style="display:none">
+      <div class="tracker-list-header">
+        <div>
+          <p class="tracker-page-title" style="margin:0">My Schedules</p>
+          <p class="tracker-page-sub" style="margin:4px 0 0">Your planned activities — tap Edit to update</p>
         </div>
-        <div class="cal-grid" id="cal2-grid"></div>
+        <button class="tracker-add-btn" onclick="openScheduleModal()" title="Add new schedule">＋</button>
       </div>
-      <div class="day-log-panel" id="day2-log-panel" style="display:none">
-        <div class="day-log-title" id="day2-log-title"></div>
-        <div id="day2-log-entries"></div>
-      </div>
+      <div id="tracker-schedule-list"></div>
     </div>
   </div>
 
@@ -314,8 +239,91 @@
   </div>
 </div>
 
-<!-- ── FLOATING + BUTTON ── -->
+<!-- ── FLOATING + BUTTON (hidden on tracker, shown elsewhere) ── -->
 <button id="fab-add" class="fab-add" onclick="openAddAlarmModal()" title="Set a new alarm">＋</button>
+
+<!-- ── SCHEDULE MODAL ── -->
+<div id="schedule-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box schedule-modal-box">
+    <div class="add-alarm-header">
+      <div class="add-alarm-title" id="schedule-modal-title">📅 Add Schedule</div>
+      <button class="add-alarm-close" onclick="closeScheduleModal()">✕</button>
+    </div>
+
+    <!-- Category -->
+    <div class="add-alarm-section">
+      <div class="add-alarm-section-lbl">🎯 Activity</div>
+      <div class="aa-categories" id="sc-categories">
+        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="scSelectCat(this)">🌙 Sleep</button>
+        <button type="button" class="aa-cat-btn" data-cat="Work" onclick="scSelectCat(this)">💻 Work</button>
+        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="scSelectCat(this)">🏃 Exercise</button>
+        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="scSelectCat(this)">📚 Studies</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="scSelectCat(this)">🍽 Meals</button>
+        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">📱 Screen Use</button>
+        <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">📖 Reading</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">🧘 Meditation</button>
+        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button>
+      </div>
+      <input type="text" class="aa-custom-input" id="sc-custom-activity" placeholder="Custom activity name…" oninput="scClearCatIfTyping()">
+    </div>
+
+    <!-- Date -->
+    <div class="add-alarm-section">
+      <div class="add-alarm-section-lbl">📅 Date</div>
+      <input type="date" id="sc-date" class="lf-date-input">
+      <!-- <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="sc-chip-btn" onclick="scSetDate('today')">Today</button>
+        <button class="sc-chip-btn" onclick="scSetDate('tomorrow')">Tomorrow</button>
+        <button class="sc-chip-btn" onclick="scSetDate('next-week')">Next week</button>
+      </div> -->
+    </div>
+
+    <!-- Time range -->
+    <div class="add-alarm-section">
+      <div class="add-alarm-section-lbl">⏰ Time Range</div>
+      <div class="add-alarm-row">
+        <div class="ampm-field" style="flex:1">
+          <label>From</label>
+          <div class="ampm-wrap">
+            <input class="ampm-hour" id="sc-from-h" type="number" min="1" max="12" value="8" placeholder="8">
+            <span class="ampm-sep">:</span>
+            <input class="ampm-min" id="sc-from-m" type="number" min="0" max="59" value="00" placeholder="00">
+            <div class="ampm-toggle">
+              <button type="button" class="ampm-btn sel" id="sc-from-am" onclick="scSetAmPm('from','AM')">AM</button>
+              <button type="button" class="ampm-btn" id="sc-from-pm" onclick="scSetAmPm('from','PM')">PM</button>
+            </div>
+          </div>
+        </div>
+        <div class="ampm-arrow" style="padding-bottom:8px">→</div>
+        <div class="ampm-field" style="flex:1">
+          <label>Until</label>
+          <div class="ampm-wrap">
+            <input class="ampm-hour" id="sc-to-h" type="number" min="1" max="12" value="9" placeholder="9">
+            <span class="ampm-sep">:</span>
+            <input class="ampm-min" id="sc-to-m" type="number" min="0" max="59" value="00" placeholder="00">
+            <div class="ampm-toggle">
+              <button type="button" class="ampm-btn sel" id="sc-to-am" onclick="scSetAmPm('to','AM')">AM</button>
+              <button type="button" class="ampm-btn" id="sc-to-pm" onclick="scSetAmPm('to','PM')">PM</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="aa-duration-display" id="sc-duration-display">Total Duration: —</div>
+    </div>
+
+    <!-- Note -->
+    <div class="add-alarm-section">
+      <div class="add-alarm-section-lbl">📝 Note <span style="font-weight:400;color:var(--hint);text-transform:none">(optional)</span></div>
+      <textarea class="log-note" id="sc-note" rows="2" placeholder="Add a note about this activity…"></textarea>
+    </div>
+
+    <!-- Save -->
+    <div class="add-alarm-section" style="border-bottom:none">
+      <button class="auth-btn" onclick="saveSchedule()" id="sc-save-btn">💾 Save Schedule</button>
+      <div id="sc-msg" class="auth-msg" style="margin-top:10px"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ── ADD ALARM MODAL ── -->
 <div id="add-alarm-modal" class="modal-overlay" style="display:none">

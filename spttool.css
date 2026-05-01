@@ -323,3 +323,50 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .lf-reminder-row{margin-top:14px;padding:12px 14px;background:var(--surf2);border-radius:var(--rsm);border:1px solid var(--border)}
 .lf-reminder-lbl{font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:500}
 .lf-reminder-lbl input{accent-color:var(--green);width:15px;height:15px}
+/* ── TRACKER EMPTY STATE ── */
+.tracker-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:60vh;padding:32px 20px;animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.tracker-empty-icon{font-size:48px;margin-bottom:16px;opacity:.4}
+.tracker-empty-title{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--text);margin-bottom:8px}
+.tracker-empty-sub{font-size:13px;color:var(--muted);line-height:1.6;max-width:280px;margin-bottom:32px}
+
+/* Centered big + button */
+.tracker-fab-center{display:flex;flex-direction:column;align-items:center;gap:10px;background:linear-gradient(135deg,#0F6E56,#1D9E75);border:none;border-radius:24px;padding:20px 36px;cursor:pointer;box-shadow:0 8px 32px rgba(29,158,117,0.4);transition:all .25s;color:#fff}
+.tracker-fab-center:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 14px 40px rgba(29,158,117,0.5)}
+.tracker-fab-center:active{transform:scale(.97)}
+.tracker-fab-plus{font-size:44px;line-height:1;font-weight:300}
+.tracker-fab-label{font-family:'Sora',sans-serif;font-size:14px;font-weight:600;letter-spacing:.03em}
+
+/* Tracker list header */
+.tracker-list-header{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 0 16px}
+.tracker-add-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#1D9E75);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(29,158,117,0.4);transition:all .2s;flex-shrink:0}
+.tracker-add-btn:hover{transform:scale(1.1);box-shadow:0 6px 22px rgba(29,158,117,0.5)}
+
+/* Schedule cards */
+.schedule-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:10px;transition:border-color .2s;animation:fadeIn .3s ease}
+.schedule-card:hover{border-color:var(--borderf)}
+.schedule-card-top{display:flex;align-items:flex-start;gap:12px}
+.schedule-card-icon{width:42px;height:42px;border-radius:12px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.schedule-card-info{flex:1;min-width:0}
+.schedule-card-cat{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.schedule-card-date{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.schedule-date-badge{display:inline-flex;align-items:center;gap:3px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:2px 8px;font-size:11px;color:var(--text);font-weight:500}
+.schedule-date-badge.future{background:var(--purple-lt);border-color:rgba(83,74,183,0.2);color:var(--purple)}
+.schedule-date-badge.today{background:var(--green-lt);border-color:rgba(29,158,117,0.25);color:var(--green-dk)}
+.schedule-date-badge.past{background:var(--surf3);color:var(--hint)}
+.schedule-card-time{font-size:12.5px;color:var(--green-dk);font-weight:500;margin-top:4px}
+.schedule-card-note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;font-style:italic}
+.schedule-card-actions{display:flex;gap:6px;margin-top:12px;border-top:.5px solid var(--border);padding-top:12px}
+.sc-edit-btn{flex:1;padding:8px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.sc-edit-btn:hover{background:var(--green-lt);border-color:var(--green);color:var(--green-dk)}
+.sc-delete-btn{width:36px;height:36px;background:none;border:1px solid var(--border);border-radius:var(--rsm);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--hint)}
+.sc-delete-btn:hover{background:var(--red-lt);border-color:var(--red);color:var(--red)}
+
+/* Schedule modal */
+.schedule-modal-box{max-width:440px;width:100%;max-height:92vh;overflow-y:auto;text-align:left;padding:0}
+/* .sc-chip-btn{padding:6px 14px;border:1px solid var(--borderf);border-radius:20px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;background:var(--surf2);color:var(--muted);transition:all .15s}
+.sc-chip-btn:hover{border-color:var(--green);color:var(--green-dk);background:var(--green-lt)} */
+
+/* Grouped date sections */
+.schedule-date-group{margin-bottom:20px}
+.schedule-date-group-label{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.08em;padding:8px 0 10px;border-bottom:.5px solid var(--border);margin-bottom:10px}

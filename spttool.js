@@ -98,9 +98,9 @@ function launchApp(user) {
   document.getElementById('app-screen').classList.add('active');
   buildHabitCards();
   renderCalendar();
-  renderCalendar2();
   renderTrends();
   renderHistory();
+  renderTrackerSchedules();
   startAlarmWatcher();
   window.scrollTo(0, 0);
 }
@@ -156,7 +156,7 @@ function showTab(t) {
   });
   if(t==='trends') renderTrends();
   if(t==='history'){ renderCalendar(); renderHistory(); }
-  if(t==='tracker') renderCalendar2();
+  // tracker rendering is handled by the appended showTab override below
 }
 
 /* ═══════════════════════════════════════
@@ -1976,3 +1976,325 @@ renderHistory = function() {
   btn.onclick = () => { historyFilter = 'quickalarm'; renderHistory(); };
   filterWrap.appendChild(btn);
 };
+/* ═══════════════════════════════════════
+   SCHEDULE TRACKER  –  new tracker tab
+═══════════════════════════════════════ */
+
+const SC_CAT_ICONS = {
+  'Sleep':'🌙','Work':'💻','Exercise':'🏃','Studies':'📚',
+  'Meals':'🍽','Screen Use':'📱','Reading':'📖','Meditation':'🧘','Other':'✍'
+};
+
+let _scSelectedCat = '';
+let _scEditId = null;   // null = new, else ID of schedule being edited
+
+/* ── Helpers ── */
+function _scFmt12(time24) {
+  const [h, m] = time24.split(':').map(Number);
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function _scGet24(prefix) {
+  const hEl = document.getElementById(`sc-${prefix}-h`);
+  const mEl = document.getElementById(`sc-${prefix}-m`);
+  const amBtn = document.getElementById(`sc-${prefix}-am`);
+  let h = parseInt(hEl.value) || 12;
+  const m = parseInt(mEl.value) || 0;
+  const isAM = amBtn.classList.contains('sel');
+  if (isAM && h === 12) h = 0;
+  if (!isAM && h !== 12) h += 12;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function _scSet12(prefix, time24) {
+  const [h, m] = time24.split(':').map(Number);
+  const isAM = h < 12;
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  document.getElementById(`sc-${prefix}-h`).value = h12;
+  document.getElementById(`sc-${prefix}-m`).value = String(m).padStart(2,'0');
+  document.getElementById(`sc-${prefix}-am`).classList.toggle('sel', isAM);
+  document.getElementById(`sc-${prefix}-pm`).classList.toggle('sel', !isAM);
+}
+function scSetAmPm(prefix, val) {
+  document.getElementById(`sc-${prefix}-am`).classList.toggle('sel', val==='AM');
+  document.getElementById(`sc-${prefix}-pm`).classList.toggle('sel', val==='PM');
+  _scUpdateDuration();
+}
+function _scUpdateDuration() {
+  const from = _scGet24('from');
+  const to   = _scGet24('to');
+  const disp = document.getElementById('sc-duration-display');
+  if (!disp) return;
+  const [h1,m1] = from.split(':').map(Number);
+  const [h2,m2] = to.split(':').map(Number);
+  let diff = (h2*60+m2) - (h1*60+m1);
+  if (diff < 0) diff += 1440;
+  const hrs = Math.floor(diff/60);
+  const mins = diff % 60;
+  disp.textContent = diff === 0 ? 'Total Duration: —'
+    : `Total Duration: ${hrs > 0 ? hrs+'h ' : ''}${mins > 0 ? mins+'m' : ''}`;
+}
+
+// Wire duration watchers after DOM
+document.addEventListener('DOMContentLoaded', function() {
+  ['sc-from-h','sc-from-m','sc-to-h','sc-to-m'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', _scUpdateDuration);
+  });
+});
+
+function scSelectCat(btn) {
+  document.querySelectorAll('#sc-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  _scSelectedCat = btn.dataset.cat;
+  document.getElementById('sc-custom-activity').value = '';
+}
+function scClearCatIfTyping() {
+  document.querySelectorAll('#sc-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
+  _scSelectedCat = '';
+}
+
+function scSetDate(rel) {
+  const d = new Date();
+  if (rel === 'tomorrow') d.setDate(d.getDate() + 1);
+  if (rel === 'next-week') d.setDate(d.getDate() + 7);
+  document.getElementById('sc-date').value = d.toISOString().split('T')[0];
+}
+
+/* ── Open / Close modal ── */
+function openScheduleModal(editId) {
+  _scEditId = editId || null;
+  const modal = document.getElementById('schedule-modal');
+  const titleEl = document.getElementById('schedule-modal-title');
+  const saveBtnEl = document.getElementById('sc-save-btn');
+
+  // Reset
+  document.querySelectorAll('#sc-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
+  _scSelectedCat = '';
+  document.getElementById('sc-custom-activity').value = '';
+  document.getElementById('sc-note').value = '';
+  document.getElementById('sc-msg').textContent = '';
+  document.getElementById('sc-msg').className = 'auth-msg';
+
+  if (editId) {
+    // Load existing
+    titleEl.textContent = '✏️ Edit Schedule';
+    saveBtnEl.textContent = '💾 Update Schedule';
+    const ud = getUserData();
+    const sc = (ud.schedules || []).find(s => s.id === editId);
+    if (sc) {
+      document.getElementById('sc-date').value = sc.date;
+      _scSet12('from', sc.fromTime);
+      _scSet12('to', sc.toTime);
+      document.getElementById('sc-note').value = sc.note || '';
+      const customText = SC_CAT_ICONS[sc.category] ? '' : sc.category;
+      if (customText) {
+        document.getElementById('sc-custom-activity').value = sc.category;
+      } else {
+        const catBtn = document.querySelector(`#sc-categories .aa-cat-btn[data-cat="${sc.category}"]`);
+        if (catBtn) { catBtn.classList.add('sel'); _scSelectedCat = sc.category; }
+      }
+    }
+  } else {
+    titleEl.textContent = '📅 Add Schedule';
+    saveBtnEl.textContent = '💾 Save Schedule';
+    // default to today
+    document.getElementById('sc-date').value = new Date().toISOString().split('T')[0];
+    _scSet12('from', '08:00');
+    _scSet12('to', '09:00');
+  }
+  _scUpdateDuration();
+  modal.style.display = 'flex';
+}
+
+function closeScheduleModal() {
+  document.getElementById('schedule-modal').style.display = 'none';
+}
+
+/* ── Save / Update ── */
+function saveSchedule() {
+  const customText = document.getElementById('sc-custom-activity').value.trim();
+  const category = customText || _scSelectedCat;
+  const date = document.getElementById('sc-date').value;
+  const note = document.getElementById('sc-note').value.trim();
+  const msgEl = document.getElementById('sc-msg');
+
+  if (!category) {
+    msgEl.textContent = 'Please select an activity or enter a custom one.';
+    msgEl.className = 'auth-msg err';
+    return;
+  }
+  if (!date) {
+    msgEl.textContent = 'Please choose a date.';
+    msgEl.className = 'auth-msg err';
+    return;
+  }
+
+  const from = _scGet24('from');
+  const to   = _scGet24('to');
+  const [h1,m1] = from.split(':').map(Number);
+  const [h2,m2] = to.split(':').map(Number);
+  let durationMins = (h2*60+m2) - (h1*60+m1);
+  if (durationMins < 0) durationMins += 1440;
+
+  const ud = getUserData();
+  if (!ud.schedules) ud.schedules = [];
+
+  if (_scEditId) {
+    // Update existing
+    const idx = ud.schedules.findIndex(s => s.id === _scEditId);
+    if (idx !== -1) {
+      ud.schedules[idx] = { ...ud.schedules[idx], category, date, fromTime: from, toTime: to, durationMins, note, updatedAt: new Date().toISOString() };
+    }
+    msgEl.textContent = '✅ Schedule updated!';
+  } else {
+    // New
+    const entry = {
+      id: Date.now(),
+      category,
+      date,
+      fromTime: from,
+      toTime: to,
+      durationMins,
+      note,
+      createdAt: new Date().toISOString()
+    };
+    ud.schedules.push(entry);
+    msgEl.textContent = '✅ Schedule saved!';
+  }
+
+  msgEl.className = 'auth-msg ok';
+  saveUserData();
+  renderTrackerSchedules();
+  setTimeout(() => closeScheduleModal(), 900);
+}
+
+/* ── Delete ── */
+function deleteSchedule(id) {
+  if (!confirm('Remove this schedule?')) return;
+  const ud = getUserData();
+  ud.schedules = (ud.schedules || []).filter(s => s.id !== id);
+  saveUserData();
+  renderTrackerSchedules();
+}
+
+/* ── Render ── */
+function renderTrackerSchedules() {
+  const ud = getUserData();
+  const schedules = (ud && ud.schedules) ? [...ud.schedules] : [];
+  const emptyState = document.getElementById('tracker-empty-state');
+  const listWrap = document.getElementById('tracker-schedules-wrap');
+  const listEl = document.getElementById('tracker-schedule-list');
+
+  if (!schedules.length) {
+    emptyState.style.display = 'flex';
+    listWrap.style.display = 'none';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  listWrap.style.display = 'block';
+  listEl.innerHTML = '';
+
+  // Sort by date then time
+  schedules.sort((a, b) => (a.date + a.fromTime).localeCompare(b.date + b.fromTime));
+
+  // Group by date
+  const groups = {};
+  schedules.forEach(sc => {
+    if (!groups[sc.date]) groups[sc.date] = [];
+    groups[sc.date].push(sc);
+  });
+
+  const today = new Date().toISOString().split('T')[0];
+
+  Object.keys(groups).sort().forEach(date => {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'schedule-date-group';
+
+    const d = new Date(date + 'T00:00:00');
+    const label = date === today ? 'Today'
+      : date > today ? _formatDateLabel(d)
+      : _formatDateLabel(d) + ' (past)';
+
+    groupDiv.innerHTML = `<div class="schedule-date-group-label">${label}</div>`;
+
+    groups[date].forEach(sc => {
+      const icon = SC_CAT_ICONS[sc.category] || '📌';
+      const fromDisp = _scFmt12(sc.fromTime);
+      const toDisp   = _scFmt12(sc.toTime);
+      const hrs = Math.floor(sc.durationMins/60);
+      const mins = sc.durationMins % 60;
+      const durStr = (hrs > 0 ? hrs+'h ' : '') + (mins > 0 ? mins+'m' : '');
+
+      const badgeClass = date > today ? 'future' : date === today ? 'today' : 'past';
+      const badgeText  = date > today ? '📆 Upcoming' : date === today ? '📍 Today' : '✔ Past';
+
+      const card = document.createElement('div');
+      card.className = 'schedule-card';
+      card.innerHTML = `
+        <div class="schedule-card-top">
+          <div class="schedule-card-icon">${icon}</div>
+          <div class="schedule-card-info">
+            <div class="schedule-card-cat">${sc.category}</div>
+            <div class="schedule-card-date">
+              <span class="schedule-date-badge ${badgeClass}">${badgeText}</span>
+              <span>${_niceDate(date)}</span>
+            </div>
+            <div class="schedule-card-time">⏰ ${fromDisp} → ${toDisp} · ${durStr || '—'}</div>
+            ${sc.note ? `<div class="schedule-card-note">"${sc.note}"</div>` : ''}
+          </div>
+        </div>
+        <div class="schedule-card-actions">
+          <button class="sc-edit-btn" onclick="openScheduleModal(${sc.id})">✏️ Edit</button>
+          <button class="sc-delete-btn" onclick="deleteSchedule(${sc.id})" title="Remove">🗑</button>
+        </div>`;
+      groupDiv.appendChild(card);
+    });
+
+    listEl.appendChild(groupDiv);
+  });
+}
+
+function _niceDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+}
+function _formatDateLabel(d) {
+  return d.toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' });
+}
+
+/* Patch showTab to render schedules when tracker is opened */
+const _origShowTab = showTab;
+showTab = function(t) {
+  _origShowTab(t);
+  if (t === 'tracker') renderTrackerSchedules();
+};
+
+/* Also hide/show FAB based on active tab */
+const __origShowTab = showTab;
+showTab = function(t) {
+  __origShowTab(t);
+  const fab = document.getElementById('fab-add');
+  if (fab) fab.style.display = (t === 'tracker') ? 'none' : '';
+};
+
+/* On login, render schedules and hide FAB if on tracker */
+const _origLaunchApp = launchApp;
+// Patch launchApp to also init schedules
+document.addEventListener('DOMContentLoaded', function() {
+  // After app launches, renderTrackerSchedules is called via showTab override
+  // Ensure fab is visible by default (not tracker tab)
+  const fab = document.getElementById('fab-add');
+  if (fab) fab.style.display = '';
+});
+
+// Close schedule modal on overlay click
+document.addEventListener('DOMContentLoaded', function() {
+  const overlay = document.getElementById('schedule-modal');
+  if (overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeScheduleModal();
+    });
+  }
+});

@@ -15,17 +15,27 @@
 <div id="auth-screen" class="screen active">
   <div class="auth-card">
     <div class="auth-top">
-      <div class="auth-top-icon">🌿</div>
+      <div class="auth-top-icon">SPT</div>
       <h1>Quick Tracker</h1>
       <p>Personalised wellness check-ins, just for you</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Create account</button>
     </div>
     <div class="auth-body">
       <div id="tab-login">
         <div class="field"><label>Username</label><input id="li-user" type="text" placeholder="Enter your username" autocomplete="username"></div>
         <div class="field"><label>Password</label><div class="pw-wrap"><input id="li-pass" type="password" placeholder="Enter your password" autocomplete="current-password"><button class="pw-toggle" onclick="togglePw('li-pass',this)" tabindex="-1">👁</button></div></div>
-        <label class="remember-row"><input type="checkbox" id="li-remember" checked> Remember me</label>
         <button class="auth-btn" onclick="doLogin()">Sign in →</button>
         <div id="li-msg" class="auth-msg"></div>
+      </div>
+      <div id="tab-signup" style="display:none">
+        <div class="field"><label>Full name</label><input id="su-name" type="text" placeholder="e.g. Tshering Wangmo"></div>
+        <div class="field"><label>Choose a username</label><input id="su-user" type="text" placeholder="e.g. tshering99" autocomplete="username"></div>
+        <div class="field"><label>Create password</label><div class="pw-wrap"><input id="su-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"><button class="pw-toggle" onclick="togglePw('su-pass',this)" tabindex="-1">👁</button></div></div>
+        <button class="auth-btn" onclick="doSignup()">Create account →</button>
+        <div id="su-msg" class="auth-msg"></div>
       </div>
     </div>
   </div>
@@ -35,7 +45,7 @@
 <div id="app-screen" class="screen">
   <div class="app-header">
     <div class="app-logo">
-      <div class="app-logo-icon">🌿</div>
+      <div class="app-logo-icon">SPT</div>
       <span>Quick Tracker</span>
     </div>
     <div class="user-pill" onclick="doLogout()">
@@ -46,19 +56,18 @@
   </div>
 
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showTab('check-in')">📋 Check-In</button>
-    <button class="nav-tab" onclick="showTab('tracker')">⏰ Habit Tracker</button>
-    <button class="nav-tab" onclick="showTab('history')">📖 History</button>
-    <button class="nav-tab" onclick="showTab('calendar')">📅 Calendar</button>
+    <button class="nav-tab active" onclick="showTab('check-in')">Check-In</button>
+    <button class="nav-tab" onclick="showTab('tracker')">📋 Tracker</button>
+    <button class="nav-tab" onclick="showTab('history')">📅 History</button>
     <button class="nav-tab" onclick="showTab('trends')">📈 Trends</button>
   </div>
 
   <!-- ── CHECK-IN TAB ── -->
   <div id="tab-check-in" class="tab-pane active">
     <div class="hero">
-      <div class="hero-icon">🌿</div>
+      <div class="hero-icon">SPT</div>
       <h2>Hello, <span id="greeting-name"></span> 👋</h2>
-      <p>A few gentle questions about your day — and we'll share honest, personalised tips.</p>
+      <p>A few gentle questions about your day — and we'll share what's happening within you, and personalised tips.</p>
       <div class="prog-wrap">
         <div class="prog-meta"><span>Your progress</span><span id="prog-txt">0 of 12</span></div>
         <div class="prog-bar"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
@@ -71,29 +80,28 @@
       <div class="q-card">
         <div class="q-num">Question 1</div><p class="q-title">How old are you?</p>
         <div class="opts" data-q="age">
-          <button type="button" class="opt" data-v="Under 18"><span class="opt-em">🌱</span> Under 18</button>
-          <button type="button" class="opt" data-v="18–25"><span class="opt-em">☀️</span> 18 – 25</button>
-          <button type="button" class="opt" data-v="26–35"><span class="opt-em">🌤</span> 26 – 35</button>
-          <button type="button" class="opt" data-v="36–50"><span class="opt-em">🍂</span> 36 – 50</button>
-          <button type="button" class="opt" data-v="50+"><span class="opt-em">🌾</span> Over 50</button>
+          <button type="button" class="opt" data-v="Under 18"><span class="opt-em"></span> Under 18</button>
+          <button type="button" class="opt" data-v="18–25"><span class="opt-em"></span> 18 – 25</button>
+          <button type="button" class="opt" data-v="26–35"><span class="opt-em"></span> 26 – 35</button>
+          <button type="button" class="opt" data-v="36–50"><span class="opt-em"></span> 36 – 50</button>
+          <button type="button" class="opt" data-v="50+"><span class="opt-em"></span> Over 50</button>
         </div>
       </div>
 
       <div class="q-card">
         <div class="q-num">Question 2</div><p class="q-title">Where do you live?</p>
         <div class="opts" data-q="location">
-          <button type="button" class="opt" data-v="Urban"><span class="opt-em">🏙️</span> City</button>
-          <button type="button" class="opt" data-v="Semi-urban"><span class="opt-em">🏘️</span> Town</button>
-          <button type="button" class="opt" data-v="Rural"><span class="opt-em">🌳</span> Village / countryside</button>
+          <button type="button" class="opt" data-v="Urban"><span class="opt-em"></span> City</button>
+          <button type="button" class="opt" data-v="Semi-urban"><span class="opt-em"></span> Town</button>
         </div>
       </div>
 
       <div class="q-card">
         <div class="q-num">Question 3</div><p class="q-title">What kind of work do you do most of the time?</p>
         <div class="opts" data-q="worktype">
-          <button type="button" class="opt" data-v="Sitting"><span class="opt-em">💻</span> Mostly sitting</button>
-          <button type="button" class="opt" data-v="Physical"><span class="opt-em">🚶</span> Mostly moving</button>
-          <button type="button" class="opt" data-v="Both"><span class="opt-em">🔄</span> A mix</button>
+          <button type="button" class="opt" data-v="Sitting"><span class="opt-em"></span> Mental </button>
+          <button type="button" class="opt" data-v="Physical"><span class="opt-em"></span> Physical</button>
+          <button type="button" class="opt" data-v="Both"><span class="opt-em"></span> Both </button>
         </div>
       </div>
 
@@ -102,43 +110,43 @@
       <div class="q-card">
         <div class="q-num">Question 4</div><p class="q-title">How many hours do you work on a normal day?</p>
         <div class="opts" data-q="workhours">
-          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em">🌙</span> 0–4 hrs</button>
-          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em">🌤</span> 5–6 hrs</button>
-          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em">☀️</span> 7–8 hrs</button>
-          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em">🔥</span> 9+ hrs</button>
+          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
+          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
+          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
+          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em"></span> 9+ hrs</button>
         </div>
       </div>
 
       <div class="q-card">
         <div class="q-num">Question 5</div><p class="q-title">How many hours do you sleep most nights?</p>
         <div class="opts" data-q="sleep">
-          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em">😴</span> 0–4 hrs</button>
-          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em">🌛</span> 5–6 hrs</button>
-          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em">🌟</span> 7–8 hrs</button>
-          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em">💤</span> 9+ hrs</button>
+          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
+          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
+          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
+          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em"></span> 9+ hrs</button>
         </div>
       </div>
 
       <div class="q-card">
         <div class="q-num">Question 6</div><p class="q-title">How long do you use your phone before going to sleep?</p>
         <div class="opts" data-q="phonetime">
-          <button type="button" class="opt" data-v="no phone before bed"><span class="opt-em">🚫</span> No phone</button>
-          <button type="button" class="opt" data-v="less than 30 minutes"><span class="opt-em">⏱️</span> Under 30 min</button>
-          <button type="button" class="opt" data-v="30 min–1 hour"><span class="opt-em">📱</span> 30 min – 1 hr</button>
-          <button type="button" class="opt" data-v="1–2 hours"><span class="opt-em">📲</span> 1–2 hrs</button>
-          <button type="button" class="opt" data-v="2–3 hours"><span class="opt-em">😬</span> 2–3 hrs</button>
-          <button type="button" class="opt" data-v="more than 3 hours"><span class="opt-em">😵</span> 3+ hrs</button>
+          <button type="button" class="opt" data-v="no phone before bed"><span class="opt-em"></span> No phone</button>
+          <!-- <button type="button" class="opt" data-v="less than 30 minutes"><span class="opt-em"></span> Under 30 min</button> -->
+          <button type="button" class="opt" data-v="30 min–1 hour"><span class="opt-em"></span> 30 min – 1 hr</button>
+          <button type="button" class="opt" data-v="1–2 hours"><span class="opt-em"></span> 1–2 hrs</button>
+          <button type="button" class="opt" data-v="2–3 hours"><span class="opt-em"></span> 2–3 hrs</button>
+          <button type="button" class="opt" data-v="more than 3 hours"><span class="opt-em"></span> 3+ hrs</button>
         </div>
       </div>
 
       <div class="q-card">
         <div class="q-num">Question 7</div><p class="q-title">What time do you usually go to sleep?</p>
         <div class="opts" data-q="bedtime">
-          <button type="button" class="opt" data-v="before 9 PM"><span class="opt-em">🌅</span> Before 9 pm</button>
-          <button type="button" class="opt" data-v="9–10 PM"><span class="opt-em">🌆</span> 9–10 pm</button>
-          <button type="button" class="opt" data-v="10–11 PM"><span class="opt-em">🌃</span> 10–11 pm</button>
-          <button type="button" class="opt" data-v="11 PM–12 AM"><span class="opt-em">🌉</span> 11 pm–midnight</button>
-          <button type="button" class="opt" data-v="after 12 AM"><span class="opt-em">🌑</span> After midnight</button>
+          <!-- <button type="button" class="opt" data-v="before 9 PM"><span class="opt-em"></span> Before 9 pm</button> -->
+          <button type="button" class="opt" data-v="9–10 PM"><span class="opt-em"></span> 9–10 pm</button>
+          <button type="button" class="opt" data-v="10–11 PM"><span class="opt-em"></span> 10–11 pm</button>
+          <button type="button" class="opt" data-v="11 PM–12 AM"><span class="opt-em"></span> 11 pm–midnight</button>
+          <button type="button" class="opt" data-v="after 12 AM"><span class="opt-em"></span> After midnight</button>
         </div>
       </div>
 
@@ -158,22 +166,112 @@
 
   <!-- ── TRACKER TAB ── -->
   <div id="tab-tracker" class="tab-pane">
-    <p class="tracker-page-title">Habit Tracker</p>
-    <p class="tracker-page-sub">Toggle habits on, set reminder alarms, and log your daily time.</p>
-    <div id="habit-cards-wrap"></div>
+    <p class="tracker-page-title">Log an Activity</p>
+    <p class="tracker-page-sub">Pick a category, set the time, and save — your log appears on the calendar below.</p>
+
+    <!-- Quick log form -->
+    <div class="log-form-card" id="log-form-card">
+      <!-- Category row -->
+      <div class="lf-section-lbl">Category</div>
+      <div class="lf-cats" id="lf-cats">
+        <button type="button" class="lf-cat-btn" data-cat="Sleep" data-icon="🌙" onclick="lfSelectCat(this)">🌙 Sleep</button>
+        <button type="button" class="lf-cat-btn" data-cat="Work" data-icon="💻" onclick="lfSelectCat(this)">💻 Work</button>
+        <button type="button" class="lf-cat-btn" data-cat="Exercise" data-icon="🏃" onclick="lfSelectCat(this)">🏃 Exercise</button>
+        <button type="button" class="lf-cat-btn" data-cat="Screen Use" data-icon="📱" onclick="lfSelectCat(this)">📱 Screen Use</button>
+        <button type="button" class="lf-cat-btn" data-cat="Reading" data-icon="📚" onclick="lfSelectCat(this)">📚 Reading</button>
+        <button type="button" class="lf-cat-btn" data-cat="Meditation" data-icon="🧘" onclick="lfSelectCat(this)">🧘 Meditation</button>
+        <button type="button" class="lf-cat-btn" data-cat="Meals" data-icon="🍽" onclick="lfSelectCat(this)">🍽 Meals</button>
+        <button type="button" class="lf-cat-btn" data-cat="Studies" data-icon="📖" onclick="lfSelectCat(this)">📖 Studies</button>
+        <button type="button" class="lf-cat-btn lf-cat-other" data-cat="" data-icon="✍" onclick="lfSelectCat(this)">✍ Other</button>
+      </div>
+      <input type="text" class="aa-custom-input" id="lf-custom" placeholder="Custom activity name…" style="margin-top:8px;display:none" oninput="lfCustomTyped()">
+
+      <!-- Date picker -->
+      <div class="lf-section-lbl" style="margin-top:14px">Date</div>
+      <input type="date" id="lf-date" class="lf-date-input">
+
+      <!-- Time range -->
+      <div class="lf-section-lbl" style="margin-top:14px">Time</div>
+      <div class="log-ampm-row" style="gap:10px">
+        <div class="ampm-field" style="flex:1">
+          <label>Start</label>
+          <div class="ampm-wrap">
+            <input class="ampm-hour" id="lf-start-h" type="number" min="1" max="12" value="8" placeholder="8">
+            <span class="ampm-sep">:</span>
+            <input class="ampm-min" id="lf-start-m" type="number" min="0" max="59" value="00" placeholder="00">
+            <div class="ampm-toggle">
+              <button type="button" class="ampm-btn sel" id="lf-start-am" onclick="lfSetAmPm('start','AM')">AM</button>
+              <button type="button" class="ampm-btn" id="lf-start-pm" onclick="lfSetAmPm('start','PM')">PM</button>
+            </div>
+          </div>
+        </div>
+        <div class="ampm-arrow" style="padding-bottom:8px;align-self:flex-end">→</div>
+        <div class="ampm-field" style="flex:1">
+          <label>End</label>
+          <div class="ampm-wrap">
+            <input class="ampm-hour" id="lf-end-h" type="number" min="1" max="12" value="9" placeholder="9">
+            <span class="ampm-sep">:</span>
+            <input class="ampm-min" id="lf-end-m" type="number" min="0" max="59" value="00" placeholder="00">
+            <div class="ampm-toggle">
+              <button type="button" class="ampm-btn sel" id="lf-end-am" onclick="lfSetAmPm('end','AM')">AM</button>
+              <button type="button" class="ampm-btn" id="lf-end-pm" onclick="lfSetAmPm('end','PM')">PM</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="diff-display" id="lf-diff" style="margin-top:8px"></div>
+
+      <!-- Note -->
+      <div class="lf-section-lbl" style="margin-top:14px">Note <span style="font-weight:400;color:var(--hint)">(optional)</span></div>
+      <textarea class="log-note" id="lf-note" rows="2" placeholder="Add a note…"></textarea>
+
+      <!-- Set reminder toggle -->
+      <div class="lf-reminder-row">
+        <label class="lf-reminder-lbl">
+          <input type="checkbox" id="lf-reminder-check" onchange="lfToggleReminder()"> ⏰ Set reminder alarm
+        </label>
+        <div id="lf-reminder-sound" style="display:none;margin-top:10px">
+          <div class="lf-section-lbl">Alarm sound</div>
+          <div class="sound-opts">
+            <button class="sound-btn sel" data-sound="bell" onclick="lfSelectSound(this)">🔔 Bell</button>
+            <button class="sound-btn" data-sound="chime" onclick="lfSelectSound(this)">🎵 Chime</button>
+            <button class="sound-btn" data-sound="nature" onclick="lfSelectSound(this)">🌿 Nature</button>
+            <button class="sound-btn" data-sound="soft" onclick="lfSelectSound(this)">🎶 Soft Tone</button>
+            <button class="upload-sound-btn" onclick="document.getElementById('lf-sound-upload').click()">📎 My Sound</button>
+            <input type="file" id="lf-sound-upload" accept="audio/*" style="display:none" onchange="lfUploadSound(this)">
+          </div>
+        </div>
+      </div>
+
+      <button class="auth-btn" style="margin-top:16px" onclick="lfSaveLog()">Save Log ✓</button>
+      <div id="lf-msg" class="auth-msg" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Mini calendar below the form -->
+    <div style="margin-top:24px">
+      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:12px">📅 Your logged days</div>
+      <div class="calendar-wrap">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="changeMonth2(-1)">‹</button>
+          <span class="cal-month" id="cal2-month-label"></span>
+          <button class="cal-nav" onclick="changeMonth2(1)">›</button>
+        </div>
+        <div class="cal-grid" id="cal2-grid"></div>
+      </div>
+      <div class="day-log-panel" id="day2-log-panel" style="display:none">
+        <div class="day-log-title" id="day2-log-title"></div>
+        <div id="day2-log-entries"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- ── CALENDAR TAB ── -->
-  <div id="tab-calendar" class="tab-pane">
-    <p class="tracker-page-title">Calendar</p>
-    <p class="tracker-page-sub">View your logged habits and upload your own calendar.</p>
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-      <label class="upload-cal-btn" style="flex:1;text-align:center;cursor:pointer">
-        📂 Upload calendar (.ics)
-        <input type="file" accept=".ics" style="display:none" onchange="uploadCalendar(this)">
-      </label>
-    </div>
-    <div class="calendar-wrap">
+  <!-- ── HISTORY TAB ── -->
+  <div id="tab-history" class="tab-pane">
+    <p class="tracker-page-title">History & Planning</p>
+    <p class="tracker-page-sub">Tap any day to see logs — or plan ahead by tapping a future date.</p>
+
+    <!-- Full calendar -->
+    <div class="calendar-wrap" style="margin-bottom:16px">
       <div class="cal-header">
         <button class="cal-nav" onclick="changeMonth(-1)">‹</button>
         <span class="cal-month" id="cal-month-label"></span>
@@ -181,9 +279,26 @@
       </div>
       <div class="cal-grid" id="cal-grid"></div>
     </div>
+
+    <!-- Day detail panel -->
     <div class="day-log-panel" id="day-log-panel">
-      <div class="day-log-title" id="day-log-title">Select a day to view logs</div>
+      <div class="day-log-title" id="day-log-title">Select a day to view or plan</div>
       <div id="day-log-entries"></div>
+    </div>
+
+    <!-- Upload ICS -->
+    <div style="margin-top:12px">
+      <label class="upload-cal-btn" style="display:block;text-align:center;cursor:pointer">
+        📂 Upload calendar (.ics)
+        <input type="file" accept=".ics" style="display:none" onchange="uploadCalendar(this)">
+      </label>
+    </div>
+
+    <!-- History list -->
+    <div style="margin-top:20px">
+      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:10px">All Logs</div>
+      <div id="history-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div id="history-content"></div>
     </div>
   </div>
 
@@ -197,13 +312,82 @@
     </div>
     <div id="trends-content"></div>
   </div>
+</div>
 
-  <!-- ── HISTORY TAB ── -->
-  <div id="tab-history" class="tab-pane">
-    <p class="tracker-page-title">Log History</p>
-    <p class="tracker-page-sub">Every habit you've logged, newest first. Tap 🗑 to delete an entry.</p>
-    <div id="history-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
-    <div id="history-content"></div>
+<!-- ── FLOATING + BUTTON ── -->
+<button id="fab-add" class="fab-add" onclick="openAddAlarmModal()" title="Set a new alarm">＋</button>
+
+<!-- ── ADD ALARM MODAL ── -->
+<div id="add-alarm-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box add-alarm-box">
+    <div class="add-alarm-header">
+      <div class="add-alarm-title">⏰ Set Alarm</div>
+      <button class="add-alarm-close" onclick="closeAddAlarmModal()">✕</button>
+    </div>
+
+    <!-- Time range -->
+    <div class="add-alarm-section">
+      <div class="add-alarm-row">
+        <div class="ampm-field" style="flex:1">
+          <label>From</label>
+          <div class="ampm-wrap">
+            <input class="ampm-hour" id="aa-from-h" type="number" min="1" max="12" value="8" placeholder="8">
+            <span class="ampm-sep">:</span>
+            <input class="ampm-min" id="aa-from-m" type="number" min="0" max="59" value="00" placeholder="00">
+            <div class="ampm-toggle">
+              <button type="button" class="ampm-btn sel" id="aa-from-am" onclick="aaSetAmPm('from','AM')">AM</button>
+              <button type="button" class="ampm-btn" id="aa-from-pm" onclick="aaSetAmPm('from','PM')">PM</button>
+            </div>
+          </div>
+        </div>
+        <div class="ampm-arrow" style="padding-bottom:8px">→</div>
+        <div class="ampm-field" style="flex:1">
+          <label>Until</label>
+          <div class="ampm-wrap">
+            <input class="ampm-hour" id="aa-to-h" type="number" min="1" max="12" value="9" placeholder="9">
+            <span class="ampm-sep">:</span>
+            <input class="ampm-min" id="aa-to-m" type="number" min="0" max="59" value="00" placeholder="00">
+            <div class="ampm-toggle">
+              <button type="button" class="ampm-btn sel" id="aa-to-am" onclick="aaSetAmPm('to','AM')">AM</button>
+              <button type="button" class="ampm-btn" id="aa-to-pm" onclick="aaSetAmPm('to','PM')">PM</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="aa-duration-display" id="aa-duration-display">Total Duration: —</div>
+    </div>
+
+    <!-- Purpose / category -->
+    <div class="add-alarm-section">
+      <div class="add-alarm-section-lbl">🎯 Alarm Purpose</div>
+      <div class="aa-categories" id="aa-categories">
+        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="aaSelectCat(this)">📚 Studies</button>
+        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="aaSelectCat(this)">😴 Sleep</button>
+        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="aaSelectCat(this)">📱 Screen Use</button>
+        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="aaSelectCat(this)">🏃 Exercise</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="aaSelectCat(this)">🍽 Meals</button>
+        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="aaSelectCat(this)">✍ Other</button>
+      </div>
+      <input type="text" class="aa-custom-input" id="aa-custom-activity" placeholder="Enter your activity or purpose…" oninput="aaClearCatIfTyping()">
+    </div>
+
+    <!-- Sound -->
+    <div class="add-alarm-section">
+      <div class="add-alarm-section-lbl">🔔 Alarm Sound</div>
+      <div class="sound-opts" id="aa-sounds">
+        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">🔔 Bell</button>
+        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
+        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
+        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
+        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
+        <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
+      </div>
+    </div>
+
+    <div class="add-alarm-section" style="border-bottom:none">
+      <button class="auth-btn" onclick="saveAddAlarm()">💾 Save Alarm</button>
+      <div id="aa-msg" class="auth-msg" style="margin-top:10px"></div>
+    </div>
   </div>
 </div>
 

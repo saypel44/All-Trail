@@ -1934,6 +1934,78 @@ function _aaFmtDisplay(time24) {
   return `${f.h}:${f.m} ${f.ampm}`;
 }
 
+/* ── Alarm fields embedded in Schedule Modal ── */
+let _scAlarmSelectedCat = '';
+let _scAlarmSound = 'bell';
+let _scAlarmCustomSoundData = null;
+
+// function scAlarmSelectCat(btn) {
+//   document.getElementById('sc-alarm-categories').querySelectorAll('.aa-cat-btn').forEach(b => b.classList.remove('sel'));
+//   btn.classList.add('sel');
+//   _scAlarmSelectedCat = btn.dataset.cat;
+//   document.getElementById('sc-alarm-custom-activity').value = '';
+// }
+
+// function scAlarmClearCatIfTyping() {
+//   if (document.getElementById('sc-alarm-custom-activity').value.trim()) {
+//     document.getElementById('sc-alarm-categories').querySelectorAll('.aa-cat-btn').forEach(b => b.classList.remove('sel'));
+//     _scAlarmSelectedCat = '';
+//   }
+// }
+
+function scAlarmSelectSound(btn) {
+  document.getElementById('sc-alarm-sounds').querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  _scAlarmSound = btn.dataset.sound;
+  _scAlarmCustomSoundData = null;
+  playSound(_scAlarmSound, null);
+}
+
+function scAlarmUploadSound(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _scAlarmCustomSoundData = e.target.result;
+    _scAlarmSound = 'custom';
+    document.getElementById('sc-alarm-sounds').querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
+    input.previousElementSibling.textContent = '✅ ' + file.name.substring(0, 16);
+    playSound('custom', _scAlarmCustomSoundData);
+  };
+  reader.readAsDataURL(file);
+}
+
+function scAlarmSelectDeviceMusic(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _scAlarmCustomSoundData = e.target.result;
+    _scAlarmSound = 'custom';
+    document.getElementById('sc-alarm-sounds').querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
+    const nameEl = document.getElementById('sc-alarm-device-music-name');
+    if (nameEl) nameEl.textContent = '🎵 ' + file.name;
+    playSound('custom', _scAlarmCustomSoundData, false);
+  };
+  reader.readAsDataURL(file);
+}
+
+function _scAlarmReset() {
+  _scAlarmSelectedCat = '';
+  _scAlarmSound = 'bell';
+  _scAlarmCustomSoundData = null;
+  document.getElementById('sc-alarm-categories').querySelectorAll('.aa-cat-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('sc-alarm-custom-activity').value = '';
+  const sounds = document.getElementById('sc-alarm-sounds');
+  if (sounds) {
+    sounds.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
+    const bell = sounds.querySelector('[data-sound="bell"]');
+    if (bell) bell.classList.add('sel');
+  }
+  const devMusic = document.getElementById('sc-alarm-device-music-section');
+  if (devMusic) devMusic.style.display = 'none';
+  const devName = document.getElementById('sc-alarm-device-music-name');
+  if (devName) devName.textContent = '';
+}
+
 /* ── Quick Alarm scheduler ── */
 let _qaTimers = [];
 
@@ -2106,6 +2178,9 @@ function _scUpdateDuration() {
   const mins = diff % 60;
   disp.textContent = diff === 0 ? 'Total Duration: —'
     : `Total Duration: ${hrs > 0 ? hrs+'h ' : ''}${mins > 0 ? mins+'m' : ''}`;
+  // Show device-music section in embedded alarm when duration >= 60 min
+  const devMusic = document.getElementById('sc-alarm-device-music-section');
+  if (devMusic) devMusic.style.display = diff >= 60 ? 'block' : 'none';
 }
 
 // Wire duration watchers after DOM
@@ -2150,6 +2225,7 @@ function openScheduleModal(editId) {
   document.getElementById('sc-task-input').value = '';
   document.getElementById('sc-msg').textContent = '';
   document.getElementById('sc-msg').className = 'auth-msg';
+  _scAlarmReset();
 
   if (editId) {
     // Load existing
@@ -2242,6 +2318,50 @@ function saveSchedule() {
 
   msgEl.className = 'auth-msg ok';
   saveUserData();
+
+  // Also save embedded alarm if an alarm purpose or sound was configured
+  const alarmCustomText = document.getElementById('sc-alarm-custom-activity').value.trim();
+  const alarmCategory = alarmCustomText || _scAlarmSelectedCat;
+  if (alarmCategory || _scAlarmSound !== 'bell') {
+    const alarmCat = alarmCategory || category; // fallback to schedule category
+    const diff = calcDiff(from, to);
+    const fromDisplay = _aaFmtDisplay(from);
+    const toDisplay   = _aaFmtDisplay(to);
+    if (!ud.quickAlarms) ud.quickAlarms = [];
+    const alarmEntry = {
+      id: Date.now() + 1,
+      date,
+      fromTime: from,
+      toTime: to,
+      fromDisplay,
+      toDisplay,
+      duration: diff || '—',
+      durationMins,
+      durationHrs: +(durationMins / 60).toFixed(2),
+      category: alarmCat,
+      isCustomCategory: !!alarmCustomText,
+      sound: _scAlarmSound,
+      createdAt: new Date().toISOString()
+    };
+    ud.quickAlarms.push(alarmEntry);
+    const catIcon = AA_CAT_ICONS[alarmCat] || '⏰';
+    ud.logs.push({
+      id: alarmEntry.id,
+      habitId: 'quickalarm',
+      habitName: alarmCat,
+      habitIcon: catIcon,
+      date,
+      duration: alarmEntry.durationHrs,
+      unit: 'hrs',
+      startTime: fromDisplay,
+      endTime: toDisplay,
+      note: `Alarm (via Schedule) · ${diff || '—'} · Sound: ${_scAlarmSound}`,
+      isQuickAlarm: true
+    });
+    saveUserData();
+    _scheduleQuickAlarm(alarmEntry);
+  }
+
   renderTrackerSchedules();
   setTimeout(() => closeScheduleModal(), 900);
 }

@@ -254,15 +254,15 @@
     <div class="add-alarm-section">
       <div class="add-alarm-section-lbl">🎯 Activity</div>
       <div class="aa-categories" id="sc-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="scSelectCat(this)">🌙 Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Work" onclick="scSelectCat(this)">💻 Work</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="scSelectCat(this)">🏃 Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="scSelectCat(this)">📚 Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="scSelectCat(this)">🍽 Meals</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">📱 Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">📖 Reading</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">🧘 Meditation</button>
-        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button>
+        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="scSelectCat(this)">Sleep</button>
+        <button type="button" class="aa-cat-btn" data-cat="Work" onclick="scSelectCat(this)">Work</button>
+        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="scSelectCat(this)">Exercise</button>
+        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="scSelectCat(this)">Studies</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="scSelectCat(this)">Meals</button>
+        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">Screen Use</button>
+        <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">Reading</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">Meditation</button>
+        <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button> -->
       </div>
       <input type="text" class="aa-custom-input" id="sc-custom-activity" placeholder="Custom activity name…" oninput="scClearCatIfTyping()">
     </div>
@@ -367,14 +367,13 @@
 
     <!-- Purpose / category -->
     <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🎯 Alarm Purpose</div>
+      <div class="add-alarm-section-lbl">Alarm Purpose</div>
       <div class="aa-categories" id="aa-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="aaSelectCat(this)">📚 Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="aaSelectCat(this)">😴 Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="aaSelectCat(this)">📱 Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="aaSelectCat(this)">🏃 Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="aaSelectCat(this)">🍽 Meals</button>
-        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="aaSelectCat(this)">✍ Other</button>
+        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="aaSelectCat(this)">Studies</button>
+        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="aaSelectCat(this)">Sleep</button>
+        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="aaSelectCat(this)">Screen Use</button>
+        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="aaSelectCat(this)">Exercise</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="aaSelectCat(this)">Meals</button>
       </div>
       <input type="text" class="aa-custom-input" id="aa-custom-activity" placeholder="Enter your activity or purpose…" oninput="aaClearCatIfTyping()">
     </div>
@@ -383,17 +382,17 @@
     <div class="add-alarm-section">
       <div class="add-alarm-section-lbl">🔔 Alarm Sound</div>
       <div class="sound-opts" id="aa-sounds">
-        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">🔔 Bell</button>
-        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
-        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
-        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
-        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
+        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">Bell</button>
+        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">Chime</button>
+        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">Nature</button>
+        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)"> Soft Tone</button>
+        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">🎶 My Sound</button>
         <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
       </div>
     </div>
 
     <div class="add-alarm-section" style="border-bottom:none">
-      <button class="auth-btn" onclick="saveAddAlarm()">💾 Save Alarm</button>
+      <button class="auth-btn" onclick="saveAddAlarm()">Save Alarm</button>
       <div id="aa-msg" class="auth-msg" style="margin-top:10px"></div>
     </div>
   </div>

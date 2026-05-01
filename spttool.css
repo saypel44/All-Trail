@@ -364,8 +364,6 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 
 /* Schedule modal */
 .schedule-modal-box{max-width:440px;width:100%;max-height:92vh;overflow-y:auto;text-align:left;padding:0}
-.sc-chip-btn{padding:6px 14px;border:1px solid var(--borderf);border-radius:20px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;background:var(--surf2);color:var(--muted);transition:all .15s}
-.sc-chip-btn:hover{border-color:var(--green);color:var(--green-dk);background:var(--green-lt)}
 
 /* Grouped date sections */
 .schedule-date-group{margin-bottom:20px}
@@ -390,7 +388,6 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 
 /* Quick-add chips */
 .sc-quick-chips{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px}
-.sc-chips-label{font-size:11px;color:var(--hint);font-weight:500;white-space:nowrap}
 .sc-quick-chip{padding:4px 12px;border:1px solid var(--border);border-radius:20px;font-size:11.5px;font-family:'Sora',sans-serif;cursor:pointer;background:var(--surf);color:var(--muted);transition:all .12s}
 .sc-quick-chip:hover{border-color:var(--green);color:var(--green-dk);background:var(--green-lt)}
 

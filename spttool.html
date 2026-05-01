@@ -266,20 +266,15 @@
         <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">📱 Screen Use</button>
         <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">📖 Reading</button>
         <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">🧘 Meditation</button>
-        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button>
+        <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button> -->
       </div>
-      <input type="text" class="aa-custom-input" id="sc-custom-activity" placeholder="Custom activity name…" oninput="scClearCatIfTyping()">
+      <input type="text" class="aa-custom-input" id="sc-custom-activity" placeholder="Type activity name" oninput="scClearCatIfTyping()">
     </div>
 
     <!-- Date -->
     <div class="add-alarm-section">
       <div class="add-alarm-section-lbl">📅 Date</div>
       <input type="date" id="sc-date" class="lf-date-input">
-      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="sc-chip-btn" onclick="scSetDate('today')">Today</button>
-        <button class="sc-chip-btn" onclick="scSetDate('tomorrow')">Tomorrow</button>
-        <button class="sc-chip-btn" onclick="scSetDate('next-week')">Next week</button>
-      </div>
     </div>
 
     <!-- Time range -->

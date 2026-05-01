@@ -2072,7 +2072,9 @@ function openScheduleModal(editId) {
   document.querySelectorAll('#sc-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
   _scSelectedCat = '';
   document.getElementById('sc-custom-activity').value = '';
-  document.getElementById('sc-note').value = '';
+  _scTasks = [];
+  _scRenderChecklist();
+  document.getElementById('sc-task-input').value = '';
   document.getElementById('sc-msg').textContent = '';
   document.getElementById('sc-msg').className = 'auth-msg';
 
@@ -2086,7 +2088,8 @@ function openScheduleModal(editId) {
       document.getElementById('sc-date').value = sc.date;
       _scSet12('from', sc.fromTime);
       _scSet12('to', sc.toTime);
-      document.getElementById('sc-note').value = sc.note || '';
+      _scTasks = sc.tasks ? JSON.parse(JSON.stringify(sc.tasks)) : [];
+      _scRenderChecklist();
       const customText = SC_CAT_ICONS[sc.category] ? '' : sc.category;
       if (customText) {
         document.getElementById('sc-custom-activity').value = sc.category;
@@ -2116,7 +2119,7 @@ function saveSchedule() {
   const customText = document.getElementById('sc-custom-activity').value.trim();
   const category = customText || _scSelectedCat;
   const date = document.getElementById('sc-date').value;
-  const note = document.getElementById('sc-note').value.trim();
+  const tasks = _scTasks.map(t => ({...t}));  // snapshot
   const msgEl = document.getElementById('sc-msg');
 
   if (!category) {
@@ -2144,7 +2147,7 @@ function saveSchedule() {
     // Update existing
     const idx = ud.schedules.findIndex(s => s.id === _scEditId);
     if (idx !== -1) {
-      ud.schedules[idx] = { ...ud.schedules[idx], category, date, fromTime: from, toTime: to, durationMins, note, updatedAt: new Date().toISOString() };
+      ud.schedules[idx] = { ...ud.schedules[idx], category, date, fromTime: from, toTime: to, durationMins, tasks, updatedAt: new Date().toISOString() };
     }
     msgEl.textContent = '✅ Schedule updated!';
   } else {
@@ -2156,7 +2159,7 @@ function saveSchedule() {
       fromTime: from,
       toTime: to,
       durationMins,
-      note,
+      tasks,
       createdAt: new Date().toISOString()
     };
     ud.schedules.push(entry);
@@ -2232,6 +2235,23 @@ function renderTrackerSchedules() {
 
       const card = document.createElement('div');
       card.className = 'schedule-card';
+      card.dataset.id = sc.id;
+
+      // Build tasks HTML
+      let tasksHtml = '';
+      const tasks = sc.tasks || [];
+      if (tasks.length) {
+        const done = tasks.filter(t => t.done).length;
+        tasksHtml = `<div class="sc-card-checklist" id="card-tasks-${sc.id}">
+          ${tasks.map((t,i) => `
+            <div class="sc-card-task">
+              <input type="checkbox" class="sc-card-task-cb" ${t.done?'checked':''} onchange="scToggleCardTask(${sc.id},${i},this)" title="Mark done">
+              <span class="sc-card-task-label${t.done?' done':''}" id="task-lbl-${sc.id}-${i}">${_escHtml(t.text)}</span>
+            </div>`).join('')}
+          <span class="sc-checklist-count">✓ ${done}/${tasks.length} done</span>
+        </div>`;
+      }
+
       card.innerHTML = `
         <div class="schedule-card-top">
           <div class="schedule-card-icon">${icon}</div>
@@ -2242,7 +2262,7 @@ function renderTrackerSchedules() {
               <span>${_niceDate(date)}</span>
             </div>
             <div class="schedule-card-time">⏰ ${fromDisp} → ${toDisp} · ${durStr || '—'}</div>
-            ${sc.note ? `<div class="schedule-card-note">"${sc.note}"</div>` : ''}
+            ${tasksHtml}
           </div>
         </div>
         <div class="schedule-card-actions">
@@ -2298,3 +2318,88 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+/* ═══════════════════════════════════════
+   PLAN-YOUR-DAY CHECKLIST (Schedule modal)
+═══════════════════════════════════════ */
+let _scTasks = [];   // [{text, done}]
+
+function _scRenderChecklist() {
+  const container = document.getElementById('sc-checklist');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!_scTasks.length) return;
+
+  _scTasks.forEach((task, i) => {
+    const row = document.createElement('div');
+    row.className = 'sc-task-row';
+    row.draggable = true;
+    row.dataset.idx = i;
+    row.innerHTML = `
+      <input type="checkbox" class="sc-task-cb" ${task.done ? 'checked' : ''}
+        onchange="_scToggleTask(${i}, this)" title="Mark done">
+      <span class="sc-task-text${task.done ? ' done' : ''}" id="sc-task-text-${i}">${_escHtml(task.text)}</span>
+      <button type="button" class="sc-task-del" onclick="_scDeleteTask(${i})" title="Remove">✕</button>`;
+    container.appendChild(row);
+  });
+}
+
+function _scToggleTask(i, cb) {
+  _scTasks[i].done = cb.checked;
+  const lbl = document.getElementById(`sc-task-text-${i}`);
+  if (lbl) lbl.classList.toggle('done', cb.checked);
+}
+
+function _scDeleteTask(i) {
+  _scTasks.splice(i, 1);
+  _scRenderChecklist();
+}
+
+function scAddTask() {
+  const inp = document.getElementById('sc-task-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  _scTasks.push({ text, done: false });
+  inp.value = '';
+  _scRenderChecklist();
+  inp.focus();
+}
+
+function scHandleTaskKey(e) {
+  if (e.key === 'Enter') { e.preventDefault(); scAddTask(); }
+}
+
+function scQuickAdd(btn) {
+  const text = btn.textContent.trim();
+  if (_scTasks.find(t => t.text === text)) return; // no dupes
+  _scTasks.push({ text, done: false });
+  _scRenderChecklist();
+}
+
+/* Toggle task done state directly on the schedule card (without opening modal) */
+function scToggleCardTask(scheduleId, taskIdx, cb) {
+  const ud = getUserData();
+  if (!ud || !ud.schedules) return;
+  const sc = ud.schedules.find(s => s.id === scheduleId);
+  if (!sc || !sc.tasks || !sc.tasks[taskIdx]) return;
+  sc.tasks[taskIdx].done = cb.checked;
+  saveUserData();
+
+  // Update label style + count inline without full re-render
+  const lbl = document.getElementById(`task-lbl-${scheduleId}-${taskIdx}`);
+  if (lbl) lbl.classList.toggle('done', cb.checked);
+
+  // Update the "X/Y done" count badge
+  const wrap = document.getElementById(`card-tasks-${scheduleId}`);
+  if (wrap) {
+    const countEl = wrap.querySelector('.sc-checklist-count');
+    if (countEl) {
+      const done = sc.tasks.filter(t => t.done).length;
+      countEl.textContent = `✓ ${done}/${sc.tasks.length} done`;
+    }
+  }
+}
+
+function _escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}

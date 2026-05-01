@@ -25,16 +25,20 @@
     </div>
     <div class="auth-body">
       <div id="tab-login">
-        <div class="field"><label>Username</label><input id="li-user" type="text" placeholder="Enter your username" autocomplete="username"></div>
-        <div class="field"><label>Password</label><div class="pw-wrap"><input id="li-pass" type="password" placeholder="Enter your password" autocomplete="current-password"><button class="pw-toggle" onclick="togglePw('li-pass',this)" tabindex="-1">👁</button></div></div>
-        <button class="auth-btn" onclick="doLogin()">Sign in →</button>
+        <form action="javascript:void(0)" onsubmit="doLogin()" autocomplete="on">
+          <div class="field"><label>Username</label><input id="li-user" type="text" placeholder="Enter your username" autocomplete="username"></div>
+          <div class="field"><label>Password</label><div class="pw-wrap"><input id="li-pass" type="password" placeholder="Enter your password" autocomplete="current-password"><button type="button" class="pw-toggle" onclick="togglePw('li-pass',this)" tabindex="-1">👁</button></div></div>
+          <button type="submit" class="auth-btn">Sign in →</button>
+        </form>
         <div id="li-msg" class="auth-msg"></div>
       </div>
       <div id="tab-signup" style="display:none">
-        <div class="field"><label>Full name</label><input id="su-name" type="text" placeholder="e.g. Tshering Wangmo"></div>
-        <div class="field"><label>Choose a username</label><input id="su-user" type="text" placeholder="e.g. tshering99" autocomplete="username"></div>
-        <div class="field"><label>Create password</label><div class="pw-wrap"><input id="su-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"><button class="pw-toggle" onclick="togglePw('su-pass',this)" tabindex="-1">👁</button></div></div>
-        <button class="auth-btn" onclick="doSignup()">Create account →</button>
+        <form action="javascript:void(0)" onsubmit="doSignup()" autocomplete="on">
+          <div class="field"><label>Full name</label><input id="su-name" type="text" placeholder="e.g. Tshering Wangmo" autocomplete="name"></div>
+          <div class="field"><label>Choose a username</label><input id="su-user" type="text" placeholder="e.g. tshering99" autocomplete="username"></div>
+          <div class="field"><label>Create password</label><div class="pw-wrap"><input id="su-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('su-pass',this)" tabindex="-1">👁</button></div></div>
+          <button type="submit" class="auth-btn">Create account →</button>
+        </form>
         <div id="su-msg" class="auth-msg"></div>
       </div>
     </div>
@@ -254,15 +258,15 @@
     <div class="add-alarm-section">
       <div class="add-alarm-section-lbl">🎯 Activity</div>
       <div class="aa-categories" id="sc-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="scSelectCat(this)">Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Work" onclick="scSelectCat(this)">Work</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="scSelectCat(this)">Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="scSelectCat(this)">Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="scSelectCat(this)">Meals</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">Reading</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">Meditation</button>
-        <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button> -->
+        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="scSelectCat(this)">🌙 Sleep</button>
+        <button type="button" class="aa-cat-btn" data-cat="Work" onclick="scSelectCat(this)">💻 Work</button>
+        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="scSelectCat(this)">🏃 Exercise</button>
+        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="scSelectCat(this)">📚 Studies</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="scSelectCat(this)">🍽 Meals</button>
+        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">📱 Screen Use</button>
+        <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">📖 Reading</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">🧘 Meditation</button>
+        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button>
       </div>
       <input type="text" class="aa-custom-input" id="sc-custom-activity" placeholder="Custom activity name…" oninput="scClearCatIfTyping()">
     </div>
@@ -271,11 +275,11 @@
     <div class="add-alarm-section">
       <div class="add-alarm-section-lbl">📅 Date</div>
       <input type="date" id="sc-date" class="lf-date-input">
-      <!-- <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
         <button class="sc-chip-btn" onclick="scSetDate('today')">Today</button>
         <button class="sc-chip-btn" onclick="scSetDate('tomorrow')">Tomorrow</button>
         <button class="sc-chip-btn" onclick="scSetDate('next-week')">Next week</button>
-      </div> -->
+      </div>
     </div>
 
     <!-- Time range -->
@@ -311,10 +315,29 @@
       <div class="aa-duration-display" id="sc-duration-display">Total Duration: —</div>
     </div>
 
-    <!-- Note -->
+    <!-- Plan Your Day -->
     <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">📝 Note <span style="font-weight:400;color:var(--hint);text-transform:none">(optional)</span></div>
-      <textarea class="log-note" id="sc-note" rows="2" placeholder="Add a note about this activity…"></textarea>
+      <div class="add-alarm-section-lbl">📝 Plan for the day <span style="font-weight:400;color:var(--hint);text-transform:none">— what to do?</span></div>
+      
+      <!-- Checklist items container -->
+      <div id="sc-checklist" class="sc-checklist"></div>
+
+      <!-- Add task input -->
+      <div class="sc-task-input-row">
+        <input type="text" id="sc-task-input" class="aa-custom-input sc-task-input" placeholder="Type a task and press Enter or ＋…" onkeydown="scHandleTaskKey(event)">
+        <button type="button" class="sc-add-task-btn" onclick="scAddTask()">＋</button>
+      </div>
+
+      <!-- Quick-add suggestions -->
+      <div class="sc-quick-chips" id="sc-quick-chips">
+        <span class="sc-chips-label">Quick add:</span>
+        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Review notes</button>
+        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Warm up</button>
+        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Drink water</button>
+        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">No phone</button>
+        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Stretch</button>
+        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Meditate</button>
+      </div>
     </div>
 
     <!-- Save -->
@@ -367,13 +390,14 @@
 
     <!-- Purpose / category -->
     <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">Alarm Purpose</div>
+      <div class="add-alarm-section-lbl">🎯 Alarm Purpose</div>
       <div class="aa-categories" id="aa-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="aaSelectCat(this)">Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="aaSelectCat(this)">Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="aaSelectCat(this)">Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="aaSelectCat(this)">Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="aaSelectCat(this)">Meals</button>
+        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="aaSelectCat(this)">📚 Studies</button>
+        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="aaSelectCat(this)">😴 Sleep</button>
+        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="aaSelectCat(this)">📱 Screen Use</button>
+        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="aaSelectCat(this)">🏃 Exercise</button>
+        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="aaSelectCat(this)">🍽 Meals</button>
+        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="aaSelectCat(this)">✍ Other</button>
       </div>
       <input type="text" class="aa-custom-input" id="aa-custom-activity" placeholder="Enter your activity or purpose…" oninput="aaClearCatIfTyping()">
     </div>
@@ -382,17 +406,17 @@
     <div class="add-alarm-section">
       <div class="add-alarm-section-lbl">🔔 Alarm Sound</div>
       <div class="sound-opts" id="aa-sounds">
-        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">Bell</button>
-        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">Chime</button>
-        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">Nature</button>
-        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)"> Soft Tone</button>
-        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">🎶 My Sound</button>
+        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">🔔 Bell</button>
+        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
+        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
+        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
+        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
         <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
       </div>
     </div>
 
     <div class="add-alarm-section" style="border-bottom:none">
-      <button class="auth-btn" onclick="saveAddAlarm()">Save Alarm</button>
+      <button class="auth-btn" onclick="saveAddAlarm()">💾 Save Alarm</button>
       <div id="aa-msg" class="auth-msg" style="margin-top:10px"></div>
     </div>
   </div>

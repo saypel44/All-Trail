@@ -2365,23 +2365,11 @@ showTab = function(t) {
   if (t === 'tracker') renderTrackerSchedules();
 };
 
-/* Also hide/show FAB based on active tab */
+/* Re-render tracker schedules when switching to the tracker tab */
 const __origShowTab = showTab;
 showTab = function(t) {
   __origShowTab(t);
-  const fab = document.getElementById('fab-add');
-  if (fab) fab.style.display = (t === 'tracker') ? 'none' : '';
 };
-
-/* On login, render schedules and hide FAB if on tracker */
-const _origLaunchApp = launchApp;
-// Patch launchApp to also init schedules
-document.addEventListener('DOMContentLoaded', function() {
-  // After app launches, renderTrackerSchedules is called via showTab override
-  // Ensure fab is visible by default (not tracker tab)
-  const fab = document.getElementById('fab-add');
-  if (fab) fab.style.display = '';
-});
 
 // Close schedule modal on overlay click
 document.addEventListener('DOMContentLoaded', function() {

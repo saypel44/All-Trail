@@ -310,6 +310,12 @@
       <div class="aa-duration-display" id="sc-duration-display">Total Duration: —</div>
     </div>
 
+    <!-- Sub-activity time breakdown: appears when duration >= 1h AND tasks have minutes allocated -->
+    <div class="add-alarm-section" id="sc-sub-activities-section" style="display:none">
+      <div class="add-alarm-section-lbl">⏱ Time Breakdown <span class="sc-sub-hint-inline">— enter minutes per task below</span></div>
+      <div id="sc-sub-timeline" class="sc-sub-timeline"></div>
+    </div>
+
     <!-- Plan Your Day -->
     <div class="add-alarm-section">
       <div class="add-alarm-section-lbl">📝 Plan for the day <span style="font-weight:400;color:var(--hint);text-transform:none">— what to do?</span></div>
@@ -405,8 +411,17 @@
         <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
         <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
         <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
+        <button class="sound-btn sound-soothing" data-sound="soothing" onclick="aaSelectSound(this)">🌊 Soothing</button>
+        <button class="sound-btn sound-disturbing" data-sound="disturbing" onclick="aaSelectSound(this)">⚡ Disturbing</button>
         <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
         <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
+      </div>
+      <!-- Device music: shown when duration ≥ 1 hour -->
+      <div id="aa-device-music-section" class="aa-device-music-wrap" style="display:none">
+        <div class="aa-device-music-title">🎵 Long session — pick music from your device</div>
+        <button class="upload-sound-btn aa-music-pick-btn" onclick="document.getElementById('aa-device-music-file').click()">📁 Choose music file…</button>
+        <input type="file" id="aa-device-music-file" accept="audio/*" style="display:none" onchange="aaSelectDeviceMusic(this)">
+        <div id="aa-device-music-name" class="aa-device-music-name"></div>
       </div>
     </div>
 

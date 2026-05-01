@@ -495,11 +495,63 @@ function getAudioCtx(){
   return audioCtx;
 }
 
-function playSound(soundId,customDataUrl) {
+/* ── Active long-alarm state ── */
+let _activeAlarmNodes=[];
+let _activeAlarmAudio=null;
+function stopActiveAlarm(){
+  _activeAlarmNodes.forEach(n=>{try{n.stop();}catch(e){}});
+  _activeAlarmNodes=[];
+  if(_activeAlarmAudio){try{_activeAlarmAudio.pause();_activeAlarmAudio.currentTime=0;}catch(e){}_activeAlarmAudio=null;}
+}
+function playSound(soundId,customDataUrl,long){
+  stopActiveAlarm();
   if(customDataUrl){
-    const a=new Audio(customDataUrl);a.play();return;
+    const a=new Audio(customDataUrl);
+    if(long){a.loop=true;_activeAlarmAudio=a;}
+    a.play();return;
   }
   const ctx=getAudioCtx();
+  if(soundId==='soothing'){
+    const dur=long?30:3;
+    const master=ctx.createGain();master.connect(ctx.destination);
+    [[528,1],[660,0.4],[792,0.2],[264,0.3]].forEach(([freq,vol])=>{
+      const osc=ctx.createOscillator(),g=ctx.createGain();
+      osc.type='sine';osc.frequency.value=freq;
+      g.gain.setValueAtTime(0,ctx.currentTime);
+      g.gain.linearRampToValueAtTime(vol*0.22,ctx.currentTime+1.5);
+      g.gain.setValueAtTime(vol*0.22,ctx.currentTime+dur-1.5);
+      g.gain.linearRampToValueAtTime(0,ctx.currentTime+dur);
+      osc.connect(g);g.connect(master);
+      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+dur);
+      if(long)_activeAlarmNodes.push(osc);
+    });
+    const lfo=ctx.createOscillator(),lfoG=ctx.createGain();
+    lfo.frequency.value=0.18;lfoG.gain.value=0.04;
+    lfo.connect(lfoG);lfoG.connect(master.gain);
+    lfo.start(ctx.currentTime);lfo.stop(ctx.currentTime+dur);
+    if(long)_activeAlarmNodes.push(lfo);
+    return;
+  }
+  if(soundId==='disturbing'){
+    const dur=long?30:3;
+    const master=ctx.createGain();master.gain.value=0.38;master.connect(ctx.destination);
+    [[220,'sawtooth',0.5],[311,'square',0.3],[466,'sawtooth',0.2]].forEach(([freq,type,vol])=>{
+      const osc=ctx.createOscillator(),g=ctx.createGain();
+      osc.type=type;osc.frequency.value=freq;g.gain.value=vol;
+      for(let t=0;t<dur;t+=0.55){g.gain.setValueAtTime(vol,ctx.currentTime+t);g.gain.setValueAtTime(0.01,ctx.currentTime+t+0.22);}
+      osc.connect(g);g.connect(master);
+      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+dur);
+      if(long)_activeAlarmNodes.push(osc);
+    });
+    const bufLen=ctx.sampleRate*Math.min(dur,4);
+    const buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++)d[i]=(Math.random()*2-1)*0.12;
+    const ns=ctx.createBufferSource();ns.buffer=buf;
+    ns.connect(master);ns.start(ctx.currentTime);
+    if(long)_activeAlarmNodes.push(ns);
+    return;
+  }
   const osc=ctx.createOscillator();
   const gain=ctx.createGain();
   osc.connect(gain);gain.connect(ctx.destination);
@@ -797,14 +849,14 @@ function checkAlarms(){
   });
 }
 function triggerAlarm(habit,soundId,customData){
-  playSound(soundId,customData);
+  playSound(soundId,customData,true);
   currentAlarmHabit=habit;
   document.getElementById('alarm-modal-icon').textContent=habit.icon;
   document.getElementById('alarm-modal-title').textContent=`Time to log ${habit.name}!`;
   document.getElementById('alarm-modal-sub').textContent=`Your ${habit.name.toLowerCase()} reminder is here. Ready to record?`;
   document.getElementById('alarm-modal').style.display='flex';
 }
-function dismissAlarm(){document.getElementById('alarm-modal').style.display='none';currentAlarmHabit=null;}
+function dismissAlarm(){stopActiveAlarm();document.getElementById('alarm-modal').style.display='none';currentAlarmHabit=null;}
 function goLogFromAlarm(){
   document.getElementById('alarm-modal').style.display='none';
   if(currentAlarmHabit){
@@ -1731,6 +1783,12 @@ function _aaDurationUpdate() {
   if(!disp) return;
   const diff = calcDiff(from, to);
   disp.textContent = diff ? `Total Duration: ${diff}` : 'Total Duration: —';
+  /* Show device-music picker when duration >= 60 min */
+  const [h1,m1]=from.split(':').map(Number);
+  const [h2,m2]=to.split(':').map(Number);
+  let mins=(h2*60+m2)-(h1*60+m1);if(mins<0)mins+=1440;
+  const ms=document.getElementById('aa-device-music-section');
+  if(ms)ms.style.display=mins>=60?'block':'none';
 }
 
 // Wire live updates once DOM ready
@@ -1774,6 +1832,20 @@ function aaUploadSound(input) {
     document.getElementById('aa-sounds').querySelectorAll('.sound-btn').forEach(b=>b.classList.remove('sel'));
     input.previousElementSibling.textContent = '✅ ' + file.name.substring(0,16);
     playSound('custom', _aaCustomSoundData);
+  };
+  reader.readAsDataURL(file);
+}
+
+function aaSelectDeviceMusic(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    _aaCustomSoundData=e.target.result;
+    _aaSound='custom';
+    document.getElementById('aa-sounds').querySelectorAll('.sound-btn').forEach(b=>b.classList.remove('sel'));
+    const nameEl=document.getElementById('aa-device-music-name');
+    if(nameEl)nameEl.textContent='🎵 '+file.name;
+    playSound('custom',_aaCustomSoundData,false);
   };
   reader.readAsDataURL(file);
 }
@@ -1877,7 +1949,7 @@ function _scheduleQuickAlarm(entry) {
     const ud = getUserData();
     const sound  = entry.sound;
     const custom = (ud && ud.customSounds) ? ud.customSounds['quickalarm'] : null;
-    playSound(sound === 'custom' ? 'custom' : sound, sound === 'custom' ? custom || _aaCustomSoundData : null);
+    playSound(sound === 'custom' ? 'custom' : sound, sound === 'custom' ? custom || _aaCustomSoundData : null, true);
 
     const catIcon = AA_CAT_ICONS[entry.category] || '⏰';
     document.getElementById('alarm-modal-icon').textContent = catIcon;
@@ -2019,6 +2091,7 @@ function scSetAmPm(prefix, val) {
   document.getElementById(`sc-${prefix}-am`).classList.toggle('sel', val==='AM');
   document.getElementById(`sc-${prefix}-pm`).classList.toggle('sel', val==='PM');
   _scUpdateDuration();
+  _scUpdateSubTimeline();
 }
 function _scUpdateDuration() {
   const from = _scGet24('from');
@@ -2039,7 +2112,7 @@ function _scUpdateDuration() {
 document.addEventListener('DOMContentLoaded', function() {
   ['sc-from-h','sc-from-m','sc-to-h','sc-to-m'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', _scUpdateDuration);
+    if(el) el.addEventListener('input', ()=>{ _scUpdateDuration(); _scUpdateSubTimeline(); });
   });
 });
 
@@ -2107,6 +2180,7 @@ function openScheduleModal(editId) {
     _scSet12('to', '09:00');
   }
   _scUpdateDuration();
+  _scUpdateSubTimeline();
   modal.style.display = 'flex';
 }
 
@@ -2328,7 +2402,7 @@ function _scRenderChecklist() {
   const container = document.getElementById('sc-checklist');
   if (!container) return;
   container.innerHTML = '';
-  if (!_scTasks.length) return;
+  if (!_scTasks.length) { _scUpdateSubTimeline(); return; }
 
   _scTasks.forEach((task, i) => {
     const row = document.createElement('div');
@@ -2339,9 +2413,83 @@ function _scRenderChecklist() {
       <input type="checkbox" class="sc-task-cb" ${task.done ? 'checked' : ''}
         onchange="_scToggleTask(${i}, this)" title="Mark done">
       <span class="sc-task-text${task.done ? ' done' : ''}" id="sc-task-text-${i}">${_escHtml(task.text)}</span>
+      <div class="sc-task-dur-wrap" title="Allocate time to this sub-activity">
+        <input type="number" class="sc-task-dur-input" min="0" max="999" placeholder="min"
+          value="${task.allocMins||''}"
+          oninput="_scSetTaskDur(${i},this)">
+        <span class="sc-task-dur-unit">m</span>
+      </div>
       <button type="button" class="sc-task-del" onclick="_scDeleteTask(${i})" title="Remove">✕</button>`;
     container.appendChild(row);
   });
+  _scUpdateSubTimeline();
+}
+
+function _scSetTaskDur(i,inp){
+  const v=parseInt(inp.value);
+  _scTasks[i].allocMins=isNaN(v)||v<0?0:v;
+  _scUpdateSubTimeline();
+}
+
+function _scGetTotalMins(){
+  const from=_scGet24('from');
+  const to=_scGet24('to');
+  const [h1,m1]=from.split(':').map(Number);
+  const [h2,m2]=to.split(':').map(Number);
+  let diff=(h2*60+m2)-(h1*60+m1);
+  if(diff<0)diff+=1440;
+  return diff;
+}
+
+function _scUpdateSubTimeline(){
+  const totalMins=_scGetTotalMins();
+  const section=document.getElementById('sc-sub-activities-section');
+  const timeline=document.getElementById('sc-sub-timeline');
+  if(!section||!timeline)return;
+
+  const hasTasks=_scTasks.some(t=>t.allocMins>0);
+  if(totalMins>=60&&hasTasks){
+    section.style.display='block';
+  } else {
+    section.style.display='none';
+    return;
+  }
+
+  const from=_scGet24('from');
+  const [sh,sm]=from.split(':').map(Number);
+  let cursor=sh*60+sm;
+  const colors=['#1D9E75','#0ea5e9','#f59e0b','#8b5cf6','#ec4899','#ef4444'];
+  const tasksWithAlloc=_scTasks.filter(t=>t.allocMins>0);
+  const usedMins=tasksWithAlloc.reduce((s,t)=>s+(t.allocMins||0),0);
+  const remainMins=totalMins-usedMins;
+
+  timeline.innerHTML='';
+  _scTasks.forEach((task,i)=>{
+    const alloc=task.allocMins||0;
+    if(!alloc)return;
+    const tStart=cursor;
+    const tEnd=cursor+alloc;
+    cursor=tEnd;
+    const sStr=_scFmt12(String(Math.floor(tStart/60)%24).padStart(2,'0')+':'+String(tStart%60).padStart(2,'0'));
+    const eStr=_scFmt12(String(Math.floor(tEnd/60)%24).padStart(2,'0')+':'+String(tEnd%60).padStart(2,'0'));
+    const pct=Math.min(100,Math.round((alloc/totalMins)*100));
+    const color=colors[i%colors.length];
+
+    const row=document.createElement('div');
+    row.className='sc-sub-row';
+    row.innerHTML=`
+      <span class="sc-sub-time">${sStr}–${eStr}</span>
+      <div class="sc-sub-bar-bg"><div class="sc-sub-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="sc-sub-label">${alloc}m · ${_escHtml(task.text)}</span>`;
+    timeline.appendChild(row);
+  });
+
+  if(remainMins>0){
+    const rem=document.createElement('div');
+    rem.className='sc-sub-remain';
+    rem.textContent='⏳ '+remainMins+' min unallocated';
+    timeline.appendChild(rem);
+  }
 }
 
 function _scToggleTask(i, cb) {

@@ -240,41 +240,41 @@ function detectContradictions() {
 
   if(feelGoodAll&&overwork) {
     contra.push({
-      t:'🔮 You feel great — but your workload tells another story',
+      t:'🔮 You feel great — but your workload is something to watch',
       b:[
-        `<strong>What we see:</strong> You report feeling well-rested and energised — but you're also working ${answers.workhours} a day. That's a mismatch worth watching.`,
-        `<strong>Why it matters:</strong> Sustained overwork builds cumulative stress that doesn't always show up immediately. Many people feel fine until they suddenly crash.`,
-        `<strong>Watch for:</strong> Increased irritability, trouble unwinding, relying on coffee to get started. These are early signals. Even if you feel okay now, scheduling real rest days is protective.`
+        `<strong>What we see:</strong> You say you feel good — but you work ${answers.workhours} a day. That's a lot.`,
+        `<strong>Why it matters:</strong> Stress from heavy work can build up slowly. Many people feel fine until they suddenly feel very tired or burned out.`,
+        `<strong>What to watch for:</strong> If you start feeling more irritable, struggling to relax, or needing lots of coffee to get going, those are early signs. Even if you feel okay now, taking regular rest days is a good idea.`
       ]
     });
   }
   if(feelGoodAll&&longsleep) {
     contra.push({
-      t:'🔮 You feel energised — yet you sleep 9+ hours',
+      t:'🔮 You feel energetic — but you sleep 9+ hours every night',
       b:[
-        `<strong>What we see:</strong> You report high energy and good rest, but you sleep ${answers.sleep} every night.`,
-        `<strong>Why it matters:</strong> Consistently sleeping 9+ hours when you feel fine can sometimes indicate hidden fatigue, blood sugar fluctuations, or low physical activity masking tiredness.`,
-        `<strong>Try:</strong> Experiment with a 7–8 hour window for 2 weeks. If you feel equally good, your body was just over-sleeping. If you feel worse, your sleep need is genuinely higher — that's useful to know.`
+        `<strong>What we see:</strong> You say you have good energy, but you sleep ${answers.sleep} every night.`,
+        `<strong>Why it matters:</strong> Sleeping that long while feeling fine can sometimes mean your body is more tired than you realise, or that you're not very active.`,
+        `<strong>Try this:</strong> Experiment with 7–8 hours of sleep for 2 weeks. If you feel just as good, you were probably sleeping more than you need. If you feel worse, your body genuinely needs the extra sleep — and that's useful to know.`
       ]
     });
   }
   if(feelGoodAll&&highPhone) {
     contra.push({
-      t:`🔮 You feel rested — but ${answers.phonetime} of screens before bed is risky`,
+      t:`🔮 You feel rested — but ${answers.phonetime} of phone use before bed is a risk`,
       b:[
-        `<strong>What we see:</strong> You say you sleep well and feel rested, but you use your phone ${answers.phonetime} before sleeping.`,
-        `<strong>Why it matters:</strong> Screen light suppresses melatonin even when you don't consciously notice it. You might be getting away with it now — but this habit gradually erodes sleep depth.`,
-        `<strong>Try:</strong> One week with phone away 30 min before bed. Many people are surprised how much deeper they sleep once they stop. Your current "feeling good" could become "feeling great".`
+        `<strong>What we see:</strong> You say you sleep well, but you use your phone ${answers.phonetime} before sleeping.`,
+        `<strong>Why it matters:</strong> Phone screens affect your sleep even when you don't notice it. You might feel okay now — but this habit slowly makes sleep less deep over time.`,
+        `<strong>Try this:</strong> Put your phone away 30 minutes before bed for just one week. Many people are surprised how much better they sleep. You might go from "feeling good" to "feeling great".`
       ]
     });
   }
   if(feelGoodAll&&lateBed) {
     contra.push({
-      t:`🔮 Late bedtime + feeling fine — a fragile balance`,
+      t:`🔮 Late bedtime + feeling fine — it's a balance worth watching`,
       b:[
-        `<strong>What we see:</strong> You go to bed ${answers.bedtime} and report feeling rested and energised.`,
-        `<strong>Why it matters:</strong> Staying up late works for some people's natural chronotype. But combined with work pressures or phone use, the margin disappears quickly.`,
-        `<strong>Keep monitoring:</strong> If your energy dips during seasons of higher stress, moving your bedtime 30–45 min earlier is the fastest fix.`
+        `<strong>What we see:</strong> You go to bed ${answers.bedtime} and say you feel rested and energised.`,
+        `<strong>Why it matters:</strong> Some people naturally do fine going to bed late. But if you also work a lot or use your phone before bed, that balance can disappear quickly.`,
+        `<strong>Keep an eye on it:</strong> If your energy drops during a stressful time, try going to bed 30–45 minutes earlier. That's usually the quickest fix.`
       ]
     });
   }
@@ -315,10 +315,10 @@ function showResults() {
   const outcomePoor=poorRested||lowEnergy||daySleepy;
 
   let intro='',emoji='✨';
-  if(outcomeGood){intro="Your body is doing well — you feel rested and have good energy. Keep up what you're doing!";emoji='🌟';}
-  else if(outcomePoor&&goodHours){intro=`You sleep ${answers.sleep} but still don't feel your best. Duration isn't everything — a consistent bedtime and less phone time before bed can help a lot.`;emoji='⚠️';}
-  else if(outcomePoor&&shortSleep){intro=`You sleep ${answers.sleep} and your energy shows it. Small changes to your bedtime routine can make a big difference very quickly.`;emoji='💤';}
-  else{intro='Some things are going well and some could improve. The tips below are based on how you actually feel.';emoji='🔍';}
+  if(outcomeGood){intro="You feel rested and have good energy. You're doing great — keep it up!";emoji='🌟';}
+  else if(outcomePoor&&goodHours){intro=`You sleep ${answers.sleep} but still don't feel your best. More hours in bed isn't always the answer — going to bed at the same time and using your phone less at night can help a lot.`;emoji='⚠️';}
+  else if(outcomePoor&&shortSleep){intro=`You sleep ${answers.sleep} and it's affecting your energy. A few small changes to your bedtime can make a big difference quickly.`;emoji='💤';}
+  else{intro='Some things are going well and some can get better. Your tips below are based on what you told us.';emoji='🔍';}
 
   // ── Helper: context-aware Habit Tracker nudge ──────────────────────────
   const ud_recs = getUserData();
@@ -343,96 +343,96 @@ function showResults() {
   const phoneHours = {'no phone before bed':'none','30 min–1 hour':'30 min–1 hr','1–2 hours':'1–2 hrs','2–3 hours':'2–3 hrs','more than 3 hours':'3+ hrs'}[answers.phonetime]||'some';
 
   // ── Outcome-good cards ──
-  if(outcomeGood&&late) recs.push({l:'',t:'✅ You feel great — your late routine is actually working',
-    s:`You've adapted well to a ${answers.bedtime} bedtime and your energy shows it — that consistency is genuinely impressive. Based on your inputs, keeping the same bedtime every day (including weekends) will protect those gains long-term.`,
+  if(outcomeGood&&late) recs.push({l:'',t:'✅ You feel great — your late-night routine is working for you',
+    s:`You go to bed ${answers.bedtime} and still feel full of energy. That's great! Try to keep the same bedtime every day — even on weekends. That will help you keep feeling this good.`,
     b:[trackerNudge('sleep','sleep')]});
-  else if(outcomeGood) recs.push({l:'',t:'✅ Your habits are paying off — you feel rested and energised',
-    s:`You're sleeping well, waking up refreshed, and staying alert through the day — that's the result of real healthy choices. Based on your inputs, staying consistent with your current routine is all you need to maintain this.`,
+  else if(outcomeGood) recs.push({l:'',t:'✅ Your habits are working — you feel rested and full of energy',
+    s:`You sleep well, wake up feeling good, and stay alert all day. That means your daily habits are working. Just keep doing what you're doing and check in again in a few weeks.`,
     b:[trackerNudge('sleep','sleep')]});
 
   // ── Sleep quality poor but hours are fine ──
-  if(outcomePoor&&goodHours) recs.push({l:'warn',t:"⚠️ You're putting in the hours — the quality just needs a tune-up",
-    s:`You're already committing ${answers.sleep} to sleep, which is a real strength. Based on your inputs, putting your phone away 30–60 min before bed and keeping a consistent wake time will likely unlock the restful sleep those hours deserve.`,
+  if(outcomePoor&&goodHours) recs.push({l:'warn',t:"⚠️ You sleep enough hours — but the quality needs a small fix",
+    s:`You already sleep ${answers.sleep}, which is good. To feel better, try putting your phone away 30–60 minutes before bed and waking up at the same time each day. This can make your sleep much more restful.`,
     b:[trackerNudge('sleep','sleep hours')]});
 
   // ── Short sleep + poor outcome ──
-  if(outcomePoor&&shortSleep&&!overwork&&!phoneHigh) recs.push({l:'bad',t:"🔴 Your body is asking for a little more recovery time",
-    s:`Getting through days on ${answers.sleep} takes real resilience. Based on your inputs, adding just 1–1.5 hrs of sleep — even by going to bed 20 min earlier each week — will likely bring a noticeable lift in your energy and mood.`,
+  if(outcomePoor&&shortSleep&&!overwork&&!phoneHigh) recs.push({l:'bad',t:"🔴 Your body needs a bit more sleep",
+    s:`You're getting by on ${answers.sleep}, but your body needs more rest to feel its best. Try going to bed just 20 minutes earlier each week. Even a little more sleep can give you more energy and a better mood.`,
     b:[trackerNudge('sleep','sleep')]});
 
   // ── Hard to fall asleep ──
-  if(hardToSleep) recs.push({l:'warn',t:"⚠️ Your active mind is a strength — it just needs a gentle wind-down cue",
-    s:`The fact that your brain stays switched on at bedtime means you're a thinker and a doer — that energy is an asset during the day. Based on your inputs, a 20–30 min screen-free wind-down (dim lights, light reading) before bed will likely help you fall asleep faster and sleep deeper.`,
+  if(hardToSleep) recs.push({l:'warn',t:"⚠️ You find it hard to fall asleep — a calm bedtime routine can help",
+    s:`Your mind stays busy at bedtime, which makes it hard to sleep. Try a simple wind-down: turn off screens, dim the lights, and do something calm like reading for 20–30 minutes before bed. This tells your brain it's time to rest.`,
     b:[trackerNudge('sleep','sleep')]});
 
   // ── Daytime sleepiness ──
   if(daySleepy) recs.push({
     l:(daySleepy&&poorRested)?'bad':'warn',
-    t:(daySleepy&&poorRested)?"🔴 You're pushing through — you deserve to feel genuinely alert":"⚠️ You're still showing up — your sleep just needs a small adjustment",
+    t:(daySleepy&&poorRested)?"🔴 You feel tired during the day — let's help you feel more awake":"⚠️ You're getting through the day — just a small sleep fix can help",
     s:(daySleepy&&poorRested)
-      ?`The determination it takes to keep going while feeling drained is real — but you shouldn't have to white-knuckle your afternoons. Based on your inputs, a consistent wake time and cutting phone use 30 min before bed will likely reduce afternoon fog significantly within days.`
-      :`You're functioning and showing up, which counts for a lot. Based on your inputs, anchoring your wake time to the same hour every day — even weekends — is the single fastest way to stop daytime sleepiness.`,
+      ?`Feeling drained every day is hard. Try going to bed and waking up at the same time each day, and put your phone away 30 minutes before bed. Most people notice a real difference in just a few days.`
+      :`You're doing okay, but you feel sleepy during the day. The quickest fix is simple: wake up at the same time every day — even on weekends. This helps your body know when to feel awake and when to sleep.`,
     b:[trackerNudge('sleep','sleep quality')]});
 
   // ── Phone only (no short sleep) ──
-  if(pr>=2&&outcomePoor&&!shortSleep) recs.push({l:'warn',t:"⚠️ You're honest about your screen habit — that awareness is the first step",
-    s:`Recognising you use your phone ${answers.phonetime} before bed puts you ahead of most people. Based on your inputs, cutting screen time to under 30 min before bed for just 5 nights will likely improve your sleep depth noticeably — even without changing your bedtime.`,
+  if(pr>=2&&outcomePoor&&!shortSleep) recs.push({l:'warn',t:"⚠️ You already know about your phone habit — that's the first step",
+    s:`You use your phone ${answers.phonetime} before bed. That's actually quite common! Try putting your phone away 30 minutes earlier at night for just 5 days. Many people sleep much deeper with this one small change.`,
     b:[trackerNudge('screen','screen time')]});
 
   // ── Overwork only (no short sleep, no late) ──
-  if(overwork&&outcomePoor&&!shortSleep&&!late) recs.push({l:'bad',t:"🔴 Your work ethic is real — now let's protect your recovery",
-    s:`Working ${answers.workhours} a day shows serious discipline and commitment. Based on your inputs, stopping all work at least 1 hour before bed and taking a short walk to decompress will likely bring your evening cortisol down and improve both your sleep and your next-day focus.`,
+  if(overwork&&outcomePoor&&!shortSleep&&!late) recs.push({l:'bad',t:"🔴 You work a lot — your body needs time to recover",
+    s:`Working ${answers.workhours} a day takes a lot out of you. Try to stop all work at least 1 hour before bed. Even a short walk outside can help your body relax and get ready for sleep.`,
     b:[trackerNudge('work','work hours')]});
 
   // ── COMBINED-FACTORS ──
 
   // Scenario A: overwork + short sleep + high phone
-  if(overwork&&shortSleep&&phoneHigh) recs.push({l:'bad',t:'🔴 Three things are quietly stacking against your recovery',
-    s:`You're working ${answers.workhours}, sleeping ${answers.sleep}, and spending ${phoneHours} on your phone before bed — each one is manageable alone, but together they're draining your energy every day. Based on your inputs, sleeping 1–2 hrs more <em>and</em> cutting screen time to under 30 min before bed will likely make you feel significantly better within a week — set a reminder in the Habit Tracker to log your sleep nightly and we'll track your progress.`,
-    b:[`<strong>📊 Set a reminder:</strong> Open the <em>Habit Tracker</em> tab, enable Sleep and Screen Time, and set a nightly log reminder. One week of data will show you the change.`]});
+  if(overwork&&shortSleep&&phoneHigh) recs.push({l:'bad',t:'🔴 Three things are hurting your sleep at the same time',
+    s:`You work ${answers.workhours}, sleep only ${answers.sleep}, and use your phone ${phoneHours} before bed. Each one is okay on its own, but together they drain your energy every day. Start with two steps: sleep 1–2 hours more and put your phone away 30 minutes earlier at night. You'll likely feel better within a week.`,
+    b:[`<strong>📊 Track it:</strong> Go to the <em>Habit Tracker</em> tab and log your sleep each night. One week of tracking will show you how much better you're doing.`]});
 
   // Scenario B: overwork + short sleep, phone is fine
-  else if(overwork&&shortSleep&&!phoneHigh&&!phoneMed) recs.push({l:'bad',t:'🔴 Long workdays are shrinking your recovery window',
-    s:`Working ${answers.workhours} and sleeping only ${answers.sleep} leaves your body too little time to repair itself overnight. Based on your inputs, moving your bedtime 45–60 min earlier on work nights will likely recover most of that deficit and noticeably improve your energy within days.`,
+  else if(overwork&&shortSleep&&!phoneHigh&&!phoneMed) recs.push({l:'bad',t:'🔴 Long work days are cutting into your sleep time',
+    s:`You work ${answers.workhours} and sleep only ${answers.sleep}. That doesn't leave much time for your body to rest and recover. Try going to bed 45–60 minutes earlier on work nights. You'll likely feel more energy within just a few days.`,
     b:[trackerNudge('sleep','sleep')]});
 
   // Scenario C: short sleep + high phone, no overwork
-  else if(!overwork&&shortSleep&&phoneHigh) recs.push({l:'warn',t:'⚠️ Late-night screens are quietly borrowing time from your sleep',
-    s:`You sleep ${answers.sleep} and spend ${phoneHours} on your phone before bed — those two are directly connected, since screen light delays when your brain is actually ready for sleep. Based on your inputs, swapping the last 30 min of phone time for something screen-free will likely add 20–40 min of real sleep without changing your bedtime at all.`,
+  else if(!overwork&&shortSleep&&phoneHigh) recs.push({l:'warn',t:'⚠️ Your phone at night is taking time away from your sleep',
+    s:`You sleep ${answers.sleep} and use your phone ${phoneHours} before bed. The two are connected — phone light makes your brain stay awake longer than you think. Try swapping the last 30 minutes of phone time for something screen-free. You might gain 20–40 more minutes of real sleep without even changing your bedtime.`,
     b:[trackerNudge('screen','screen time')]});
 
   // Scenario D: good hours + high phone + feeling poor
-  if(!shortSleep&&goodHours&&phoneHigh&&outcomePoor) recs.push({l:'warn',t:'⚠️ You have the hours — screens are reducing the quality',
-    s:`You sleep ${answers.sleep}, which should be enough — yet you're still not feeling your best. Based on your inputs, ${phoneHours} of screen time before bed is likely fragmenting your deep sleep cycles. Cutting screens to under 30 min before bed for one week will likely show you a clear difference in how rested you wake up.`,
+  if(!shortSleep&&goodHours&&phoneHigh&&outcomePoor) recs.push({l:'warn',t:'⚠️ You sleep enough hours — but your phone is making it less restful',
+    s:`You sleep ${answers.sleep}, which should be enough to feel good. But you also use your phone ${phoneHours} before bed, which breaks up your deep sleep. Try keeping your phone away for the last 30 minutes before bed for just one week. You'll likely notice you wake up feeling much better.`,
     b:[trackerNudge('screen','screen time')]});
 
   // Scenario E: overwork + late bedtime + poor outcome
-  if(overwork&&late&&outcomePoor) recs.push({l:'bad',t:'🔴 Long workdays + a late bedtime = very little recovery time',
-    s:`Working ${answers.workhours} and going to bed ${answers.bedtime} means your body barely starts recovering before morning arrives. Based on your inputs, finishing all work tasks 1 hr before your target bedtime — even with a short walk to decompress — will likely improve both sleep depth and next-day energy noticeably.`,
+  if(overwork&&late&&outcomePoor) recs.push({l:'bad',t:'🔴 Long work days and a late bedtime leave little time to recover',
+    s:`You work ${answers.workhours} and go to bed ${answers.bedtime}. That means your body barely has time to rest before morning. Try to finish all work at least 1 hour before you want to sleep. Even a short walk helps your body relax and makes sleep deeper.`,
     b:[trackerNudge('work','work hours')]});
 
   // Scenario F: sedentary + low energy
-  if(sedentary&&lowEnergy) recs.push({l:'',t:"🪑 You're focused and mentally sharp — let's add some physical fuel",
-    s:`Deep focus work takes real cognitive energy, and you clearly have that. Based on your inputs, a 2-minute movement break every hour and a short walk after lunch will likely improve your afternoon energy without interrupting your concentration — it actually sharpens it.`,
+  if(sedentary&&lowEnergy) recs.push({l:'',t:"🪑 You do desk work — moving a little more can boost your energy",
+    s:`Sitting most of the day can make you feel more tired, not less. Try standing up and moving for 2 minutes every hour, and go for a short walk after lunch. It sounds small, but many people feel much more alert and focused when they do this.`,
     b:[trackerNudge('exercise','movement')]});
 
   // Scenario G: night owl + poor outcome
-  if(late&&outcomePoor) recs.push({l:'bad',t:"🔴 You're a natural night owl — let's just nudge the window slightly",
-    s:`Late-night thinkers are often the most creative — and you clearly function in that mode. Based on your inputs, moving your bedtime just 15 min earlier each week (aiming for 11 pm as a first milestone) will likely improve your sleep quality without forcing you to become a morning person.`,
+  if(late&&outcomePoor) recs.push({l:'bad',t:"🔴 You stay up late — going to bed just a little earlier can help a lot",
+    s:`You go to bed ${answers.bedtime} and it's affecting how you feel. You don't have to become a morning person! Just try going to bed 15 minutes earlier each week until you reach 11 pm. Small steps like this are easier to stick to and really work.`,
     b:[trackerNudge('sleep','sleep')]});
 
   // Contradictions
   const contras=detectContradictions();
   const contraHTML=contras.map(c=>`<div class="rec contra"><h4>${c.t}</h4><ul>${c.b.map(b=>`<li>${b}</li>`).join('')}</ul></div>`).join('');
 
-  if(recs.length===0&&contras.length===0) recs.push({l:'',t:'✅ Everything looks good — keep doing what you\'re doing',
-    s:`Your habits and how you feel are both in a healthy place — that's genuinely great to see. Based on your inputs, staying consistent with your current routine and checking in again in a few weeks is all you need.`,
+  if(recs.length===0&&contras.length===0) recs.push({l:'',t:'✅ Everything looks good — keep going!',
+    s:`Your habits and how you feel are both in a healthy place. That's great to see! Just keep doing what you're doing and check in again in a few weeks.`,
     b:[trackerNudge('sleep','sleep')]});
 
   rd.innerHTML=`
     <div class="res-hero">
       <div class="res-emoji">${emoji}</div>
-      <h3>Here is what we found…</h3>
+      <h3>Here is what we found\u2026</h3>
       <p>${intro}</p>
     </div>
     <div class="stat-grid">
@@ -441,19 +441,224 @@ function showResults() {
       <div class="stat"><div class="stat-val">${sc}<span style="font-size:12px;font-weight:400">/50</span></div><div class="stat-sub">Sleep score</div></div>
       <div class="stat"><div class="stat-val" style="font-size:13px">${answers.bedtime}</div><div class="stat-sub">Bedtime</div></div>
     </div>
-    <p class="sec-lbl">Tips just for you</p>
-    <div class="rec-box">
-      ${[...contras.map(c=>({l:'contra',t:c.t,s:c.b[0].replace(/<strong>[^<]*<\/strong>[\s:]*/g,'').replace(/<[^>]+>/g,'')})),...recs].map((r,i,arr)=>`
-        <div class="rec-row${i<arr.length-1?' rec-row-border':''}">
-          <span class="rec-icon">${r.l==='bad'?'🔴':r.l==='warn'?'⚠️':r.l==='contra'?'🔮':'✅'}</span>
-          <div class="rec-row-body">
-            <div class="rec-row-title">${r.t.replace(/^[\u{1F534}\u{26A0}\u{2705}\u{1F52E}\u{1FA91}\uFE0F\s]+/u,'')}</div>
-            <div class="rec-row-text">${(r.s||'').replace(/<[^>]+>/g,'')}</div>
-          </div>
-        </div>`).join('')}
-    </div>
-    <button type="button" id="restart-btn" onclick="restartForm()">↩ Take the quiz again</button>
+    <div id="ai-feedback-section"></div>
+    <button type="button" id="restart-btn" onclick="restartForm()">&#8617; Take the quiz again</button>
   `;
+
+  // Trigger AI feedback asynchronously
+  generateAIFeedback({ answers: {...answers}, lAnswers: {...lAnswers}, sc });
+}
+
+
+/* ═══════════════════════════════════════
+   PERSONALISED TIPS ENGINE (local, no API)
+═══════════════════════════════════════ */
+function generateAIFeedback({ answers, lAnswers, sc }) {
+  const section = document.getElementById('ai-feedback-section');
+  if (!section) return;
+  const fb = buildLocalFeedback(answers, lAnswers, sc);
+  renderAIFeedback(section, fb);
+}
+
+/* ── Sources reference table ── */
+const SOURCES_DB = {
+  aasm:    { short:'AASM, 2015',             full:'American Academy of Sleep Medicine. (2015). Recommended amount of sleep for a healthy adult. Sleep Health, 1(1), 40–43.',                                                   url:'https://doi.org/10.1016/j.sleh.2014.12.010' },
+  bmc:     { short:'BMC Public Health, 2024', full:'BMC Public Health. (2024). Sleep duration and mental health outcomes in adolescents: A population-based study.',                                                             url:'https://bmcpublichealth.biomedcentral.com/articles/10.1186/s12889-024-18725-1' },
+  statcan: { short:'Statistics Canada, 2022', full:'Statistics Canada. (2022). Sleep duration and health in Canada. Health Reports.',                                                                                           url:'https://www150.statcan.gc.ca/n1/pub/82-003-x/2022003/article/00001-eng.htm' },
+  springer:{ short:'Springer, 2024',          full:'Springer. (2024). Sleep duration and cognitive/health outcomes in adults: A systematic review.',                                                                            url:'https://link.springer.com/article/10.1186/s41606-024-00109-4' },
+  guardian:{ short:'The Guardian, 2024',      full:'The Guardian. (2024, November 26). Irregular sleep patterns raise risk of stroke and heart attack, study finds.',                                                          url:'https://www.theguardian.com/society/2024/nov/26/irregular-sleep-pattern-raises-risk-of-stroke-and-heart-attack-uk-study-finds' }
+};
+
+function cite(key){ return ''; } // kept for safety; inline citations removed
+
+function buildLocalFeedback(a, la, sc) {
+  /* ── Flags ── */
+  const sleep       = a.sleep       || '';
+  const phone       = a.phonetime   || '';
+  const workhours   = a.workhours   || '';
+  const bedtime     = a.bedtime     || '';
+  const worktype    = a.worktype    || '';
+
+  const goodSleep   = sleep === '7–8 hours';
+  const shortSleep  = sleep === '0–4 hours' || sleep === '5–6 hours';
+  const longSleep   = sleep === '9 or more hours';
+  const noPhone     = phone === 'no phone before bed';
+  const lowPhone    = phone === '30 min–1 hour';
+  const medPhone    = phone === '1–2 hours';
+  const highPhone   = phone === '2–3 hours' || phone === 'more than 3 hours';
+  const overwork    = workhours === '9 or more hours';
+  const longWork    = workhours === '7–8 hours';
+  const lateNight   = bedtime === 'after 12 AM' || bedtime === '11 PM–12 AM';
+  const earlyBed    = bedtime === '9–10 PM';
+  const sitting     = worktype === 'Sitting';
+
+  const feelRested    = la.l3 === 'Yes, always' || la.l3 === 'Most of the time';
+  const poorRested    = la.l3 === 'Not really'  || la.l3 === 'No, never';
+  const feelEnergy    = la.l5 === 'Yes, always' || la.l5 === 'Most of the time';
+  const lowEnergy     = la.l5 === 'Not really'  || la.l5 === 'No, never';
+  const alertDay      = la.l4 === 'Yes, always' || la.l4 === 'Most of the time';
+  const sleepyDay     = la.l4 === 'Not really'  || la.l4 === 'No, never';
+  const fallsAsleep   = la.l1 === 'Yes, always' || la.l1 === 'Most of the time';
+  const hardSleep     = la.l1 === 'Not really'  || la.l1 === 'No, never';
+
+  const outcomeGood = feelRested && feelEnergy && !sleepyDay;
+  const outcomePoor = poorRested || lowEnergy || sleepyDay;
+
+  const usedSources = new Set();
+  function track(key){ usedSources.add(key); }
+
+  /* ══════════════════════════════════
+     1. WHAT'S GOING WELL
+     — one friendly sentence, no inline citation
+  ══════════════════════════════════ */
+  let whatsGoingWell = '';
+  if (goodSleep && outcomeGood) {
+    track('aasm');
+    whatsGoingWell = `You sleep ${sleep} every night and feel rested and alert all day. That's exactly what healthy sleep looks like. Keep it up! 🎉`;
+  } else if (goodSleep && !outcomeGood) {
+    track('aasm');
+    whatsGoingWell = `You sleep ${sleep} every night — that's the healthy amount. You've got the foundation right. Now let's make that sleep feel more restful.`;
+  } else if (longSleep && outcomeGood) {
+    track('springer');
+    whatsGoingWell = `You make time for sleep, and it shows — you feel rested and full of energy. That's a great habit to protect.`;
+  } else if (shortSleep && feelEnergy) {
+    track('aasm');
+    whatsGoingWell = `You manage to keep your energy up even on ${sleep}. Getting just a little more rest will help you feel even better.`;
+  } else if (noPhone) {
+    track('statcan');
+    whatsGoingWell = `You keep your phone away before bed — that's one of the best things you can do for sleep. Well done!`;
+  } else if (earlyBed) {
+    track('guardian');
+    whatsGoingWell = `Going to bed at ${bedtime} gives your body great recovery time. Early bedtimes are really good for your health.`;
+  } else if (!overwork && !shortSleep) {
+    track('aasm');
+    whatsGoingWell = `You're not overworking and you get enough sleep — that's a healthy balance. Your body has time to rest and recover.`;
+  } else {
+    track('bmc');
+    whatsGoingWell = `You're tracking your habits, and that's the first step. Awareness is how real change starts.`;
+  }
+
+  /* ══════════════════════════════════
+     2. ONE THING TO WORK ON
+     — specific, kind, no inline citation
+  ══════════════════════════════════ */
+  let areaOfImprovement = '';
+  if (highPhone && (outcomePoor || !feelRested)) {
+    track('statcan');
+    areaOfImprovement = `You use your phone ${phone} before bed. Phone screens trick your brain into thinking it's still daytime — making it harder to fall into deep sleep, even if you don't notice it.`;
+  } else if (medPhone && outcomePoor) {
+    track('statcan');
+    areaOfImprovement = `Using your phone ${phone} before bed is likely making your sleep lighter. Cutting that down — even by 30 minutes — can make a real difference to how rested you feel.`;
+  } else if (shortSleep && outcomePoor) {
+    track('aasm');
+    areaOfImprovement = `You sleep ${sleep} most nights. Your body needs more time to repair and recharge. Even one extra hour of sleep can noticeably improve your energy and mood.`;
+  } else if (overwork && outcomePoor) {
+    track('springer');
+    areaOfImprovement = `Working ${workhours} a day makes it hard for your body to switch off at night. Try stopping all work at least 1 hour before bed — even a short walk helps your body wind down.`;
+  } else if (lateNight && outcomePoor) {
+    track('guardian');
+    areaOfImprovement = `Going to bed ${bedtime} is quite late. Your body sleeps best within a regular window. Try shifting your bedtime just 15 minutes earlier each week.`;
+  } else if (hardSleep) {
+    track('statcan');
+    areaOfImprovement = `You find it hard to fall asleep. Your brain needs a signal that it's time to rest. Try a calm, screen-free wind-down for 20 minutes before bed — reading, stretching, or just dim lights.`;
+  } else if (highPhone && outcomeGood) {
+    track('statcan');
+    areaOfImprovement = `You feel okay now, but ${phone} of phone use before bed is slowly affecting your sleep depth. Moving phone time earlier in the evening is the easiest win.`;
+  } else if (longSleep && !feelEnergy) {
+    track('springer');
+    areaOfImprovement = `You sleep ${sleep} but still feel low on energy. More hours in bed isn't always the fix — sleep quality matters too. A consistent bedtime and less screen time can help.`;
+  } else {
+    track('guardian');
+    areaOfImprovement = `Try going to bed and waking up at the same time every day — even on weekends. It's one of the simplest habits that makes a real difference.`;
+  }
+
+  /* ══════════════════════════════════
+     3. YOUR 3 STEPS  (replaces research bullets + 8-8-8 actions)
+     — plain, personal, no citations inline
+  ══════════════════════════════════ */
+  const actions = [];
+
+  if (goodSleep)       { track('aasm');     actions.push(`🛌 Keep sleeping ${sleep} — you're right in the healthy range`); }
+  else if (shortSleep) { track('aasm');     actions.push(`🛌 Go to bed 15 minutes earlier each week until you reach 7–8 hours`); }
+  else if (longSleep)  { track('springer'); actions.push(`🛌 Try a steady 7–8 hour window — sleep quality often matters more than extra hours`); }
+  else                 { track('aasm');     actions.push(`🛌 Aim for 7–8 hours of sleep each night`); }
+
+  if (noPhone)              { track('statcan'); actions.push(`📵 Keep your phone away before bed — that habit is working`); }
+  else if (lowPhone)        { track('statcan'); actions.push(`📵 Try cutting your pre-bed phone time from ${phone} to under 30 minutes`); }
+  else if (medPhone||highPhone) { track('statcan'); actions.push(`📵 Use your phone earlier in the evening — keep the last 30 minutes before bed screen-free`); }
+  else                      {                   actions.push(`📵 Put your phone away 30 minutes before you sleep`); }
+
+  if (lateNight)      { track('guardian'); actions.push(`🌙 Move your bedtime 15 minutes earlier each week — small shifts are easier to stick to`); }
+  else if (overwork)  { track('springer'); actions.push(`💼 Stop work at least 1 hour before bed — your brain needs that gap to switch off`); }
+  else if (hardSleep) {                    actions.push(`🌙 Spend 20–30 minutes before bed doing something calm with no screens`); }
+  else                {                    actions.push(`🌙 Keep a consistent wake-up time — even on weekends`); }
+
+  /* ══════════════════════════════════
+     4. CLOSING NOTE  (replaces whyItMatters + gentleReminder)
+     — warm, one sentence, no citation
+  ══════════════════════════════════ */
+  let gentleReminder = '';
+  if (outcomeGood) {
+    gentleReminder = `You're already doing the important things right — consistency is all you need to keep feeling this good.`;
+  } else if (highPhone) {
+    gentleReminder = `You don't need to stop using your phone — just move it earlier in your evening. One small shift, big result.`;
+  } else if (shortSleep) {
+    gentleReminder = `You don't need to overhaul your whole schedule — just 15 minutes earlier each week adds up to real, lasting change.`;
+  } else if (overwork) {
+    gentleReminder = `Rest isn't the opposite of being productive — it's what makes productivity possible. Protect your wind-down time.`;
+  } else if (lateNight) {
+    gentleReminder = `You don't have to become a morning person — just nudge your bedtime a little earlier and your body will do the rest.`;
+  } else {
+    gentleReminder = `Small, consistent changes to your sleep routine tend to have a much bigger impact than you'd expect.`;
+  }
+
+  /* ── Collect only the sources actually cited ── */
+  const sources = [...usedSources].map(k => SOURCES_DB[k]);
+
+  return { whatsGoingWell, areaOfImprovement, actions, gentleReminder, sources };
+}
+
+function renderAIFeedback(section, fb) {
+  const actionsHtml = (fb.actions || [])
+    .map(a => `<div class="ai-action">${a}</div>`).join('');
+
+  const sourcesHtml = (fb.sources && fb.sources.length) ? `
+    <details class="ai-sources-toggle">
+      <summary>📚 View sources</summary>
+      <ol class="ai-sources-list">
+        ${fb.sources.map(s => `<li>${s.full} <a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.url}</a></li>`).join('')}
+      </ol>
+    </details>` : '';
+
+  section.innerHTML = `
+    <div class="ai-feedback-card">
+      <div class="ai-feedback-header">
+        <span class="ai-feedback-badge">✨ Tips just for you</span>
+      </div>
+
+      <div class="ai-block ai-block-green">
+        <div class="ai-block-label">✅ What's going well</div>
+        <p>${fb.whatsGoingWell || ''}</p>
+      </div>
+
+      <div class="ai-block ai-block-amber">
+        <div class="ai-block-label">⚠️ One thing to work on</div>
+        <p>${fb.areaOfImprovement || ''}</p>
+      </div>
+
+      ${actionsHtml ? `
+      <div class="ai-block ai-block-purple">
+        <div class="ai-block-label">🎯 Your 3 steps</div>
+        <div class="ai-actions">${actionsHtml}</div>
+      </div>` : ''}
+
+      ${fb.gentleReminder ? `
+      <div class="ai-block ai-block-reminder">
+        <p>${fb.gentleReminder}</p>
+      </div>` : ''}
+
+      ${sourcesHtml}
+    </div>`;
 }
 
 function restartForm() {
@@ -495,63 +700,11 @@ function getAudioCtx(){
   return audioCtx;
 }
 
-/* ── Active long-alarm state ── */
-let _activeAlarmNodes=[];
-let _activeAlarmAudio=null;
-function stopActiveAlarm(){
-  _activeAlarmNodes.forEach(n=>{try{n.stop();}catch(e){}});
-  _activeAlarmNodes=[];
-  if(_activeAlarmAudio){try{_activeAlarmAudio.pause();_activeAlarmAudio.currentTime=0;}catch(e){}_activeAlarmAudio=null;}
-}
-function playSound(soundId,customDataUrl,long){
-  stopActiveAlarm();
+function playSound(soundId,customDataUrl) {
   if(customDataUrl){
-    const a=new Audio(customDataUrl);
-    if(long){a.loop=true;_activeAlarmAudio=a;}
-    a.play();return;
+    const a=new Audio(customDataUrl);a.play();return;
   }
   const ctx=getAudioCtx();
-  if(soundId==='soothing'){
-    const dur=long?30:3;
-    const master=ctx.createGain();master.connect(ctx.destination);
-    [[528,1],[660,0.4],[792,0.2],[264,0.3]].forEach(([freq,vol])=>{
-      const osc=ctx.createOscillator(),g=ctx.createGain();
-      osc.type='sine';osc.frequency.value=freq;
-      g.gain.setValueAtTime(0,ctx.currentTime);
-      g.gain.linearRampToValueAtTime(vol*0.22,ctx.currentTime+1.5);
-      g.gain.setValueAtTime(vol*0.22,ctx.currentTime+dur-1.5);
-      g.gain.linearRampToValueAtTime(0,ctx.currentTime+dur);
-      osc.connect(g);g.connect(master);
-      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+dur);
-      if(long)_activeAlarmNodes.push(osc);
-    });
-    const lfo=ctx.createOscillator(),lfoG=ctx.createGain();
-    lfo.frequency.value=0.18;lfoG.gain.value=0.04;
-    lfo.connect(lfoG);lfoG.connect(master.gain);
-    lfo.start(ctx.currentTime);lfo.stop(ctx.currentTime+dur);
-    if(long)_activeAlarmNodes.push(lfo);
-    return;
-  }
-  if(soundId==='disturbing'){
-    const dur=long?30:3;
-    const master=ctx.createGain();master.gain.value=0.38;master.connect(ctx.destination);
-    [[220,'sawtooth',0.5],[311,'square',0.3],[466,'sawtooth',0.2]].forEach(([freq,type,vol])=>{
-      const osc=ctx.createOscillator(),g=ctx.createGain();
-      osc.type=type;osc.frequency.value=freq;g.gain.value=vol;
-      for(let t=0;t<dur;t+=0.55){g.gain.setValueAtTime(vol,ctx.currentTime+t);g.gain.setValueAtTime(0.01,ctx.currentTime+t+0.22);}
-      osc.connect(g);g.connect(master);
-      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+dur);
-      if(long)_activeAlarmNodes.push(osc);
-    });
-    const bufLen=ctx.sampleRate*Math.min(dur,4);
-    const buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
-    const d=buf.getChannelData(0);
-    for(let i=0;i<bufLen;i++)d[i]=(Math.random()*2-1)*0.12;
-    const ns=ctx.createBufferSource();ns.buffer=buf;
-    ns.connect(master);ns.start(ctx.currentTime);
-    if(long)_activeAlarmNodes.push(ns);
-    return;
-  }
   const osc=ctx.createOscillator();
   const gain=ctx.createGain();
   osc.connect(gain);gain.connect(ctx.destination);
@@ -849,14 +1002,14 @@ function checkAlarms(){
   });
 }
 function triggerAlarm(habit,soundId,customData){
-  playSound(soundId,customData,true);
+  playSound(soundId,customData);
   currentAlarmHabit=habit;
   document.getElementById('alarm-modal-icon').textContent=habit.icon;
   document.getElementById('alarm-modal-title').textContent=`Time to log ${habit.name}!`;
   document.getElementById('alarm-modal-sub').textContent=`Your ${habit.name.toLowerCase()} reminder is here. Ready to record?`;
   document.getElementById('alarm-modal').style.display='flex';
 }
-function dismissAlarm(){stopActiveAlarm();document.getElementById('alarm-modal').style.display='none';currentAlarmHabit=null;}
+function dismissAlarm(){document.getElementById('alarm-modal').style.display='none';currentAlarmHabit=null;}
 function goLogFromAlarm(){
   document.getElementById('alarm-modal').style.display='none';
   if(currentAlarmHabit){
@@ -992,12 +1145,20 @@ function showDayLogs(dateStr){
       <button onclick="deleteLog(${l.id})" style="background:none;border:none;cursor:pointer;color:var(--hint);font-size:16px;padding:2px 4px;flex-shrink:0" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--hint)'">🗑</button>`;
     entries.appendChild(item);
   });
+  
+  // Show calendar events with option to convert to schedule
   calEvts.forEach(e=>{
     const item=document.createElement('div');
     item.className='log-entry-item';
-    item.innerHTML=`<div class="log-entry-icon">📅</div><div class="log-entry-meta"><div class="log-entry-habit">${e.title}</div><div class="log-entry-dur">Calendar event</div></div>`;
+    item.innerHTML=`<div class="log-entry-icon">📅</div>
+      <div class="log-entry-meta">
+        <div class="log-entry-habit">${e.title}</div>
+        <div class="log-entry-dur">Calendar event</div>
+      </div>
+      <button class="log-btn" style="padding:6px 10px;font-size:11px;margin:0" onclick="convertCalEventToSchedule('${e.title}','${dateStr}')">＋ Add to Tracker</button>`;
     entries.appendChild(item);
   });
+  
   if(isFuture){
     const addBtn=document.createElement('button');
     addBtn.className='log-btn';
@@ -1006,6 +1167,45 @@ function showDayLogs(dateStr){
     addBtn.onclick=()=>lfGoToDate(dateStr);
     entries.appendChild(addBtn);
   }
+}
+
+/* Convert calendar event to schedule */
+function convertCalEventToSchedule(title, date) {
+  const ud = getUserData();
+  if (!ud) return;
+  if (!ud.schedules) ud.schedules = [];
+  
+  // Try to match category from title
+  let category = 'Other';
+  const titleLower = title.toLowerCase();
+  const catMap = {
+    'sleep': 'Sleep', 'meeting': 'Work', 'work': 'Work', 'class': 'Studies',
+    'study': 'Studies', 'exercise': 'Exercise', 'gym': 'Exercise', 'run': 'Exercise',
+    'meal': 'Meals', 'lunch': 'Meals', 'dinner': 'Meals', 'breakfast': 'Meals',
+    'reading': 'Reading', 'book': 'Reading', 'meditation': 'Meditation', 'yoga': 'Meditation'
+  };
+  for (const [key, val] of Object.entries(catMap)) {
+    if (titleLower.includes(key)) { category = val; break; }
+  }
+  
+  // Default time 9am-10am
+  const entry = {
+    id: Date.now(),
+    category,
+    date,
+    fromTime: '09:00',
+    toTime: '10:00',
+    durationMins: 60,
+    tasks: [],
+    createdAt: new Date().toISOString(),
+    fromCal: true,
+    calTitle: title
+  };
+  
+  ud.schedules.push(entry);
+  saveUserData();
+  renderTrackerSchedules();
+  alert(`✅ Added "${title}" to your Tracker schedules!`);
 }
 
 /* ═══════════════════════════════════════
@@ -1783,12 +1983,6 @@ function _aaDurationUpdate() {
   if(!disp) return;
   const diff = calcDiff(from, to);
   disp.textContent = diff ? `Total Duration: ${diff}` : 'Total Duration: —';
-  /* Show device-music picker when duration >= 60 min */
-  const [h1,m1]=from.split(':').map(Number);
-  const [h2,m2]=to.split(':').map(Number);
-  let mins=(h2*60+m2)-(h1*60+m1);if(mins<0)mins+=1440;
-  const ms=document.getElementById('aa-device-music-section');
-  if(ms)ms.style.display=mins>=60?'block':'none';
 }
 
 // Wire live updates once DOM ready
@@ -1832,20 +2026,6 @@ function aaUploadSound(input) {
     document.getElementById('aa-sounds').querySelectorAll('.sound-btn').forEach(b=>b.classList.remove('sel'));
     input.previousElementSibling.textContent = '✅ ' + file.name.substring(0,16);
     playSound('custom', _aaCustomSoundData);
-  };
-  reader.readAsDataURL(file);
-}
-
-function aaSelectDeviceMusic(input){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    _aaCustomSoundData=e.target.result;
-    _aaSound='custom';
-    document.getElementById('aa-sounds').querySelectorAll('.sound-btn').forEach(b=>b.classList.remove('sel'));
-    const nameEl=document.getElementById('aa-device-music-name');
-    if(nameEl)nameEl.textContent='🎵 '+file.name;
-    playSound('custom',_aaCustomSoundData,false);
   };
   reader.readAsDataURL(file);
 }
@@ -1934,78 +2114,6 @@ function _aaFmtDisplay(time24) {
   return `${f.h}:${f.m} ${f.ampm}`;
 }
 
-/* ── Alarm fields embedded in Schedule Modal ── */
-let _scAlarmSelectedCat = '';
-let _scAlarmSound = 'bell';
-let _scAlarmCustomSoundData = null;
-
-// function scAlarmSelectCat(btn) {
-//   document.getElementById('sc-alarm-categories').querySelectorAll('.aa-cat-btn').forEach(b => b.classList.remove('sel'));
-//   btn.classList.add('sel');
-//   _scAlarmSelectedCat = btn.dataset.cat;
-//   document.getElementById('sc-alarm-custom-activity').value = '';
-// }
-
-// function scAlarmClearCatIfTyping() {
-//   if (document.getElementById('sc-alarm-custom-activity').value.trim()) {
-//     document.getElementById('sc-alarm-categories').querySelectorAll('.aa-cat-btn').forEach(b => b.classList.remove('sel'));
-//     _scAlarmSelectedCat = '';
-//   }
-// }
-
-function scAlarmSelectSound(btn) {
-  document.getElementById('sc-alarm-sounds').querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
-  btn.classList.add('sel');
-  _scAlarmSound = btn.dataset.sound;
-  _scAlarmCustomSoundData = null;
-  playSound(_scAlarmSound, null);
-}
-
-function scAlarmUploadSound(input) {
-  const file = input.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    _scAlarmCustomSoundData = e.target.result;
-    _scAlarmSound = 'custom';
-    document.getElementById('sc-alarm-sounds').querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
-    input.previousElementSibling.textContent = '✅ ' + file.name.substring(0, 16);
-    playSound('custom', _scAlarmCustomSoundData);
-  };
-  reader.readAsDataURL(file);
-}
-
-function scAlarmSelectDeviceMusic(input) {
-  const file = input.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    _scAlarmCustomSoundData = e.target.result;
-    _scAlarmSound = 'custom';
-    document.getElementById('sc-alarm-sounds').querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
-    const nameEl = document.getElementById('sc-alarm-device-music-name');
-    if (nameEl) nameEl.textContent = '🎵 ' + file.name;
-    playSound('custom', _scAlarmCustomSoundData, false);
-  };
-  reader.readAsDataURL(file);
-}
-
-function _scAlarmReset() {
-  _scAlarmSelectedCat = '';
-  _scAlarmSound = 'bell';
-  _scAlarmCustomSoundData = null;
-  document.getElementById('sc-alarm-categories').querySelectorAll('.aa-cat-btn').forEach(b => b.classList.remove('sel'));
-  document.getElementById('sc-alarm-custom-activity').value = '';
-  const sounds = document.getElementById('sc-alarm-sounds');
-  if (sounds) {
-    sounds.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('sel'));
-    const bell = sounds.querySelector('[data-sound="bell"]');
-    if (bell) bell.classList.add('sel');
-  }
-  const devMusic = document.getElementById('sc-alarm-device-music-section');
-  if (devMusic) devMusic.style.display = 'none';
-  const devName = document.getElementById('sc-alarm-device-music-name');
-  if (devName) devName.textContent = '';
-}
-
 /* ── Quick Alarm scheduler ── */
 let _qaTimers = [];
 
@@ -2021,7 +2129,7 @@ function _scheduleQuickAlarm(entry) {
     const ud = getUserData();
     const sound  = entry.sound;
     const custom = (ud && ud.customSounds) ? ud.customSounds['quickalarm'] : null;
-    playSound(sound === 'custom' ? 'custom' : sound, sound === 'custom' ? custom || _aaCustomSoundData : null, true);
+    playSound(sound === 'custom' ? 'custom' : sound, sound === 'custom' ? custom || _aaCustomSoundData : null);
 
     const catIcon = AA_CAT_ICONS[entry.category] || '⏰';
     document.getElementById('alarm-modal-icon').textContent = catIcon;
@@ -2163,7 +2271,6 @@ function scSetAmPm(prefix, val) {
   document.getElementById(`sc-${prefix}-am`).classList.toggle('sel', val==='AM');
   document.getElementById(`sc-${prefix}-pm`).classList.toggle('sel', val==='PM');
   _scUpdateDuration();
-  _scUpdateSubTimeline();
 }
 function _scUpdateDuration() {
   const from = _scGet24('from');
@@ -2178,16 +2285,13 @@ function _scUpdateDuration() {
   const mins = diff % 60;
   disp.textContent = diff === 0 ? 'Total Duration: —'
     : `Total Duration: ${hrs > 0 ? hrs+'h ' : ''}${mins > 0 ? mins+'m' : ''}`;
-  // Show device-music section in embedded alarm when duration >= 60 min
-  const devMusic = document.getElementById('sc-alarm-device-music-section');
-  if (devMusic) devMusic.style.display = diff >= 60 ? 'block' : 'none';
 }
 
 // Wire duration watchers after DOM
 document.addEventListener('DOMContentLoaded', function() {
   ['sc-from-h','sc-from-m','sc-to-h','sc-to-m'].forEach(id => {
     const el = document.getElementById(id);
-    if(el) el.addEventListener('input', ()=>{ _scUpdateDuration(); _scUpdateSubTimeline(); });
+    if (el) el.addEventListener('input', _scUpdateDuration);
   });
 });
 
@@ -2225,7 +2329,6 @@ function openScheduleModal(editId) {
   document.getElementById('sc-task-input').value = '';
   document.getElementById('sc-msg').textContent = '';
   document.getElementById('sc-msg').className = 'auth-msg';
-  _scAlarmReset();
 
   if (editId) {
     // Load existing
@@ -2256,7 +2359,6 @@ function openScheduleModal(editId) {
     _scSet12('to', '09:00');
   }
   _scUpdateDuration();
-  _scUpdateSubTimeline();
   modal.style.display = 'flex';
 }
 
@@ -2318,50 +2420,6 @@ function saveSchedule() {
 
   msgEl.className = 'auth-msg ok';
   saveUserData();
-
-  // Also save embedded alarm if an alarm purpose or sound was configured
-  const alarmCustomText = document.getElementById('sc-alarm-custom-activity').value.trim();
-  const alarmCategory = alarmCustomText || _scAlarmSelectedCat;
-  if (alarmCategory || _scAlarmSound !== 'bell') {
-    const alarmCat = alarmCategory || category; // fallback to schedule category
-    const diff = calcDiff(from, to);
-    const fromDisplay = _aaFmtDisplay(from);
-    const toDisplay   = _aaFmtDisplay(to);
-    if (!ud.quickAlarms) ud.quickAlarms = [];
-    const alarmEntry = {
-      id: Date.now() + 1,
-      date,
-      fromTime: from,
-      toTime: to,
-      fromDisplay,
-      toDisplay,
-      duration: diff || '—',
-      durationMins,
-      durationHrs: +(durationMins / 60).toFixed(2),
-      category: alarmCat,
-      isCustomCategory: !!alarmCustomText,
-      sound: _scAlarmSound,
-      createdAt: new Date().toISOString()
-    };
-    ud.quickAlarms.push(alarmEntry);
-    const catIcon = AA_CAT_ICONS[alarmCat] || '⏰';
-    ud.logs.push({
-      id: alarmEntry.id,
-      habitId: 'quickalarm',
-      habitName: alarmCat,
-      habitIcon: catIcon,
-      date,
-      duration: alarmEntry.durationHrs,
-      unit: 'hrs',
-      startTime: fromDisplay,
-      endTime: toDisplay,
-      note: `Alarm (via Schedule) · ${diff || '—'} · Sound: ${_scAlarmSound}`,
-      isQuickAlarm: true
-    });
-    saveUserData();
-    _scheduleQuickAlarm(alarmEntry);
-  }
-
   renderTrackerSchedules();
   setTimeout(() => closeScheduleModal(), 900);
 }
@@ -2485,11 +2543,23 @@ showTab = function(t) {
   if (t === 'tracker') renderTrackerSchedules();
 };
 
-/* Re-render tracker schedules when switching to the tracker tab */
+/* Also hide/show FAB based on active tab */
 const __origShowTab = showTab;
 showTab = function(t) {
   __origShowTab(t);
+  const fab = document.getElementById('fab-add');
+  if (fab) fab.style.display = (t === 'tracker') ? 'none' : '';
 };
+
+/* On login, render schedules and hide FAB if on tracker */
+const _origLaunchApp = launchApp;
+// Patch launchApp to also init schedules
+document.addEventListener('DOMContentLoaded', function() {
+  // After app launches, renderTrackerSchedules is called via showTab override
+  // Ensure fab is visible by default (not tracker tab)
+  const fab = document.getElementById('fab-add');
+  if (fab) fab.style.display = '';
+});
 
 // Close schedule modal on overlay click
 document.addEventListener('DOMContentLoaded', function() {
@@ -2510,7 +2580,7 @@ function _scRenderChecklist() {
   const container = document.getElementById('sc-checklist');
   if (!container) return;
   container.innerHTML = '';
-  if (!_scTasks.length) { _scUpdateSubTimeline(); return; }
+  if (!_scTasks.length) return;
 
   _scTasks.forEach((task, i) => {
     const row = document.createElement('div');
@@ -2521,83 +2591,9 @@ function _scRenderChecklist() {
       <input type="checkbox" class="sc-task-cb" ${task.done ? 'checked' : ''}
         onchange="_scToggleTask(${i}, this)" title="Mark done">
       <span class="sc-task-text${task.done ? ' done' : ''}" id="sc-task-text-${i}">${_escHtml(task.text)}</span>
-      <div class="sc-task-dur-wrap" title="Allocate time to this sub-activity">
-        <input type="number" class="sc-task-dur-input" min="0" max="999" placeholder="min"
-          value="${task.allocMins||''}"
-          oninput="_scSetTaskDur(${i},this)">
-        <span class="sc-task-dur-unit">m</span>
-      </div>
       <button type="button" class="sc-task-del" onclick="_scDeleteTask(${i})" title="Remove">✕</button>`;
     container.appendChild(row);
   });
-  _scUpdateSubTimeline();
-}
-
-function _scSetTaskDur(i,inp){
-  const v=parseInt(inp.value);
-  _scTasks[i].allocMins=isNaN(v)||v<0?0:v;
-  _scUpdateSubTimeline();
-}
-
-function _scGetTotalMins(){
-  const from=_scGet24('from');
-  const to=_scGet24('to');
-  const [h1,m1]=from.split(':').map(Number);
-  const [h2,m2]=to.split(':').map(Number);
-  let diff=(h2*60+m2)-(h1*60+m1);
-  if(diff<0)diff+=1440;
-  return diff;
-}
-
-function _scUpdateSubTimeline(){
-  const totalMins=_scGetTotalMins();
-  const section=document.getElementById('sc-sub-activities-section');
-  const timeline=document.getElementById('sc-sub-timeline');
-  if(!section||!timeline)return;
-
-  const hasTasks=_scTasks.some(t=>t.allocMins>0);
-  if(totalMins>=60&&hasTasks){
-    section.style.display='block';
-  } else {
-    section.style.display='none';
-    return;
-  }
-
-  const from=_scGet24('from');
-  const [sh,sm]=from.split(':').map(Number);
-  let cursor=sh*60+sm;
-  const colors=['#1D9E75','#0ea5e9','#f59e0b','#8b5cf6','#ec4899','#ef4444'];
-  const tasksWithAlloc=_scTasks.filter(t=>t.allocMins>0);
-  const usedMins=tasksWithAlloc.reduce((s,t)=>s+(t.allocMins||0),0);
-  const remainMins=totalMins-usedMins;
-
-  timeline.innerHTML='';
-  _scTasks.forEach((task,i)=>{
-    const alloc=task.allocMins||0;
-    if(!alloc)return;
-    const tStart=cursor;
-    const tEnd=cursor+alloc;
-    cursor=tEnd;
-    const sStr=_scFmt12(String(Math.floor(tStart/60)%24).padStart(2,'0')+':'+String(tStart%60).padStart(2,'0'));
-    const eStr=_scFmt12(String(Math.floor(tEnd/60)%24).padStart(2,'0')+':'+String(tEnd%60).padStart(2,'0'));
-    const pct=Math.min(100,Math.round((alloc/totalMins)*100));
-    const color=colors[i%colors.length];
-
-    const row=document.createElement('div');
-    row.className='sc-sub-row';
-    row.innerHTML=`
-      <span class="sc-sub-time">${sStr}–${eStr}</span>
-      <div class="sc-sub-bar-bg"><div class="sc-sub-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-      <span class="sc-sub-label">${alloc}m · ${_escHtml(task.text)}</span>`;
-    timeline.appendChild(row);
-  });
-
-  if(remainMins>0){
-    const rem=document.createElement('div');
-    rem.className='sc-sub-remain';
-    rem.textContent='⏳ '+remainMins+' min unallocated';
-    timeline.appendChild(rem);
-  }
 }
 
 function _scToggleTask(i, cb) {

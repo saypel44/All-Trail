@@ -6,7 +6,268 @@
 <title>Quick Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+/* ── Inline Chart.js-compatible line chart renderer ──
+   Covers all Chart usage in this app: type:'line' with
+   responsive canvas, tooltips, gridlines, tick callbacks.
+   No external dependencies, works from file:// with no
+   tracking-prevention issues.
+─────────────────────────────────────────────────────── */
+(function(global){
+  'use strict';
+
+  const instances = new Map();
+
+  function Chart(canvas, config) {
+    if (!(this instanceof Chart)) return new Chart(canvas, config);
+    this.canvas = canvas;
+    this.config = config;
+    this._tooltip = null;
+    const existing = instances.get(canvas);
+    if (existing) existing.destroy();
+    instances.set(canvas, this);
+    this._resize();
+    this._draw();
+    this._bindEvents();
+  }
+
+  Chart.prototype.destroy = function() {
+    if (this._resizeObs) this._resizeObs.disconnect();
+    if (this._mouseMove) this.canvas.removeEventListener('mousemove', this._mouseMove);
+    if (this._mouseLeave) this.canvas.removeEventListener('mouseleave', this._mouseLeave);
+    instances.delete(this.canvas);
+    const ctx = this.canvas.getContext('2d');
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  };
+
+  Chart.prototype._resize = function() {
+    const parent = this.canvas.parentElement;
+    if (!parent) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = parent.clientWidth || 300;
+    const h = parent.clientHeight || 200;
+    this.canvas.width  = w * dpr;
+    this.canvas.height = h * dpr;
+    this.canvas.style.width  = w + 'px';
+    this.canvas.style.height = h + 'px';
+    this._dpr = dpr;
+    this._w = w;
+    this._h = h;
+  };
+
+  Chart.prototype._bindEvents = function() {
+    const self = this;
+    this._mouseMove = function(e) {
+      const rect = self.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      self._hoverX = x;
+      self._draw();
+    };
+    this._mouseLeave = function() {
+      self._hoverX = null;
+      self._draw();
+    };
+    this.canvas.addEventListener('mousemove', this._mouseMove);
+    this.canvas.addEventListener('mouseleave', this._mouseLeave);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this._resizeObs = new ResizeObserver(function() {
+        self._resize();
+        self._draw();
+      });
+      if (this.canvas.parentElement) this._resizeObs.observe(this.canvas.parentElement);
+    }
+  };
+
+  Chart.prototype._draw = function() {
+    const canvas = this.canvas;
+    const ctx = canvas.getContext('2d');
+    const dpr = this._dpr || 1;
+    const W = this._w || canvas.width;
+    const H = this._h || canvas.height;
+    const opts = this.config.options || {};
+    const data = this.config.data || {};
+    const datasets = (data.datasets || []).filter(ds => ds.data && ds.data.length);
+    const labels = data.labels || [];
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    // Layout
+    const PAD_TOP = 16, PAD_RIGHT = 16, PAD_BOTTOM = 44, PAD_LEFT = 44;
+    const plotX = PAD_LEFT, plotY = PAD_TOP;
+    const plotW = W - PAD_LEFT - PAD_RIGHT;
+    const plotH = H - PAD_TOP - PAD_BOTTOM;
+
+    if (!datasets.length || !labels.length) {
+      ctx.fillStyle = '#a09c96';
+      ctx.font = '13px Sora,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No data yet', W / 2, H / 2);
+      ctx.restore();
+      return;
+    }
+
+    // Collect all numeric values
+    const allVals = [];
+    datasets.forEach(ds => ds.data.forEach(v => { if (v !== null && v !== undefined) allVals.push(+v); }));
+    const scaleOpts = (opts.scales && opts.scales.y) || {};
+    const rawMin = scaleOpts.min !== undefined ? scaleOpts.min : Math.min(0, ...allVals);
+    const rawMax = scaleOpts.max !== undefined ? scaleOpts.max : Math.max(...allVals) * 1.1 || 1;
+    const yMin = rawMin, yMax = rawMax;
+
+    function toX(i) { return plotX + (i / Math.max(labels.length - 1, 1)) * plotW; }
+    function toY(v) { return plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
+
+    // Grid lines
+    const maxTicks = (scaleOpts.ticks && scaleOpts.ticks.maxTicksLimit) || 6;
+    const tickStep = (scaleOpts.ticks && scaleOpts.ticks.stepSize) ? scaleOpts.ticks.stepSize : (yMax - yMin) / (maxTicks - 1);
+    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+    ctx.lineWidth = 1;
+    for (let v = yMin; v <= yMax + 0.001; v += tickStep) {
+      const y = toY(v);
+      ctx.beginPath(); ctx.moveTo(plotX, y); ctx.lineTo(plotX + plotW, y); ctx.stroke();
+      // Y tick label
+      const tickCb = scaleOpts.ticks && scaleOpts.ticks.callback;
+      const label = tickCb ? tickCb(+v.toFixed(2)) : +v.toFixed(1);
+      ctx.fillStyle = '#a09c96';
+      ctx.font = '10px Sora,sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(label, plotX - 4, y + 4);
+    }
+
+    // X axis labels
+    const maxXLabels = Math.floor(plotW / 48);
+    const xStep = Math.max(1, Math.ceil(labels.length / maxXLabels));
+    ctx.fillStyle = '#a09c96';
+    ctx.font = '10px Sora,sans-serif';
+    ctx.textAlign = 'center';
+    labels.forEach((lbl, i) => {
+      if (i % xStep !== 0 && i !== labels.length - 1) return;
+      ctx.fillText(lbl, toX(i), plotY + plotH + 16);
+    });
+
+    // Datasets
+    datasets.forEach(ds => {
+      const color = ds.borderColor || '#1D9E75';
+      const tension = ds.tension || 0;
+      const pts = ds.data.map((v, i) => v !== null && v !== undefined ? { x: toX(i), y: toY(+v), v: +v } : null);
+
+      // Fill
+      if (ds.fill) {
+        ctx.beginPath();
+        let started = false;
+        pts.forEach((p, i) => {
+          if (!p) return;
+          if (!started) { ctx.moveTo(p.x, p.y); started = true; } else { ctx.lineTo(p.x, p.y); }
+        });
+        ctx.lineTo(toX(pts.length - 1), toY(yMin));
+        ctx.lineTo(toX(0), toY(yMin));
+        ctx.closePath();
+        ctx.fillStyle = ds.backgroundColor || color + '22';
+        ctx.fill();
+      }
+
+      // Line
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      let lineStarted = false;
+      pts.forEach((p, i) => {
+        if (!p) { lineStarted = false; return; }
+        if (!lineStarted) { ctx.moveTo(p.x, p.y); lineStarted = true; } else { ctx.lineTo(p.x, p.y); }
+      });
+      ctx.stroke();
+
+      // Points
+      const pr = ds.pointRadius !== undefined ? ds.pointRadius : 4;
+      pts.forEach(p => {
+        if (!p) return;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, pr, 0, Math.PI * 2);
+        ctx.fillStyle = ds.pointBackgroundColor || color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+    });
+
+    // Hover tooltip
+    const hx = this._hoverX;
+    if (hx !== null && hx !== undefined) {
+      // Find nearest X index
+      const idx = Math.round((hx - plotX) / plotW * (labels.length - 1));
+      if (idx >= 0 && idx < labels.length) {
+        const tx = toX(idx);
+        // Vertical line
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.moveTo(tx, plotY); ctx.lineTo(tx, plotY + plotH); ctx.stroke();
+        ctx.restore();
+
+        // Tooltip box
+        const tooltipLines = [];
+        const ttOpts = opts.plugins && opts.plugins.tooltip;
+        datasets.forEach(ds => {
+          const v = ds.data[idx];
+          if (v === null || v === undefined) return;
+          let lbl = ` ${ds.label}: ${v}`;
+          if (ttOpts && ttOpts.callbacks && ttOpts.callbacks.label) {
+            const fake = { parsed: { y: v }, dataset: ds };
+            const res = ttOpts.callbacks.label(fake);
+            if (res !== null && res !== undefined) lbl = res;
+          }
+          tooltipLines.push({ text: lbl, color: ds.borderColor || '#1D9E75' });
+        });
+
+        if (tooltipLines.length) {
+          const padding = 8;
+          const lineH = 18;
+          const boxW = Math.max(...tooltipLines.map(l => l.text.length * 7)) + padding * 2 + 12;
+          const boxH = (tooltipLines.length + 1) * lineH + padding * 2;
+          let bx = tx + 10;
+          let by = plotY + 10;
+          if (bx + boxW > W - 4) bx = tx - boxW - 10;
+          if (by + boxH > H - 4) by = H - boxH - 4;
+
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.12)';
+          ctx.shadowBlur = 8;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.roundRect(bx, by, boxW, boxH, 6);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.fillStyle = '#6b6660';
+          ctx.font = '600 11px Sora,sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(labels[idx], bx + padding, by + padding + lineH - 4);
+
+          tooltipLines.forEach((line, li) => {
+            const ty = by + padding + (li + 2) * lineH - 4;
+            ctx.fillStyle = line.color;
+            ctx.beginPath(); ctx.arc(bx + padding + 4, ty - 5, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#1a1816';
+            ctx.font = '12px Sora,sans-serif';
+            ctx.fillText(line.text, bx + padding + 12, ty);
+          });
+        }
+      }
+    }
+
+    ctx.restore();
+  };
+
+  global.Chart = Chart;
+}(window));
+</script>
 <link rel="stylesheet" href="spttool.css">
 </head>
 <body>
@@ -247,7 +508,7 @@
       <button class="export-btn" onclick="exportCSV()">📄 Export CSV</button>
     </div>
     <div id="trends-content"></div>
-  </div>
+  <!-- </div> -->
 
   
 <!-- ── FLOATING + BUTTON (hidden on tracker, shown elsewhere) ── -->

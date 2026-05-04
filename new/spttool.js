@@ -1313,13 +1313,12 @@ function lfInit(){
   // Set today's date
   const dateEl=document.getElementById('lf-date');
   if(dateEl) dateEl.value=new Date().toISOString().split('T')[0];
-  // Wire live diff — guard: elements may not exist on this page
+  // Wire live diff
   ['lf-start-h','lf-start-m','lf-end-h','lf-end-m'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el) el.addEventListener('input',lfUpdateDiff);
+    if(el)el.addEventListener('input',lfUpdateDiff);
   });
-  // Only call lfUpdateDiff if the required elements actually exist
-  if(document.getElementById('lf-start-h')) lfUpdateDiff();
+  lfUpdateDiff();
 }
 
 document.addEventListener('DOMContentLoaded', lfInit);
@@ -1330,19 +1329,17 @@ function lfSetAmPm(side,val){
   lfUpdateDiff();
 }
 function _lfGetTime(side){
-  const hEl=document.getElementById(`lf-${side}-h`);
-  const mEl=document.getElementById(`lf-${side}-m`);
-  const amEl=document.getElementById(`lf-${side}-am`);
-  if(!hEl||!mEl||!amEl) return '08:00';
-  return to24(hEl.value||'8', mEl.value||'00', amEl.classList.contains('sel')?'AM':'PM');
+  const h=document.getElementById(`lf-${side}-h`).value||'8';
+  const m=document.getElementById(`lf-${side}-m`).value||'00';
+  const isAM=document.getElementById(`lf-${side}-am`).classList.contains('sel');
+  return to24(h,m,isAM?'AM':'PM');
 }
 function lfUpdateDiff(){
-  if(!document.getElementById('lf-start-h')) return;
   const from=_lfGetTime('start');
   const to=_lfGetTime('end');
   const diff=calcDiff(from,to);
   const el=document.getElementById('lf-diff');
-  if(el) el.textContent=diff?`₱ Duration: ${diff}`:'';
+  if(el) el.textContent=diff?`⏱ Duration: ${diff}`:'';
 }
 function lfSelectCat(btn){
   document.getElementById('lf-cats').querySelectorAll('.lf-cat-btn').forEach(b=>b.classList.remove('sel'));

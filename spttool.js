@@ -2597,58 +2597,6 @@ function renderTrackerSchedules() {
 
     listEl.appendChild(groupDiv);
   });
-
-  /* ── Activity summary inside tracker ── */
-  _renderTrackerSummary(listEl, ud);
-}
-
-function _renderTrackerSummary(container, ud) {
-  if (!ud || !ud.logs) return;
-  const allLogs = ud.logs.filter(l => !l.isQuickAlarm);
-  if (!allLogs.length) return;
-
-  function _fmtHrs(hrs) {
-    if (hrs < 1/60) return '< 1m';
-    const totalMins = Math.round(hrs * 60);
-    if (totalMins < 60) return totalMins + 'm';
-    const h = Math.floor(totalMins / 60);
-    const m = totalMins % 60;
-    return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
-  }
-
-  const byActivity = {};
-  allLogs.forEach(l => {
-    const key = l.habitId || l.habitName;
-    if (!byActivity[key]) {
-      byActivity[key] = { name: l.habitName, icon: l.habitIcon || '📋', totalHrs: 0, sessions: 0 };
-    }
-    const hrs = l.unit === 'mins' ? l.duration / 60 : Number(l.duration) || 0;
-    byActivity[key].totalHrs += hrs;
-    byActivity[key].sessions += 1;
-  });
-
-  const entries = Object.values(byActivity).sort((a, b) => b.totalHrs - a.totalHrs);
-  if (!entries.length) return;
-
-  const section = document.createElement('div');
-  section.className = 'hist-summary-section';
-  section.innerHTML = `
-    <div class="hist-summary-header">
-      <span class="hist-summary-title">📊 Total by Activity</span>
-      <span class="hist-summary-sub">All-time · across all logs</span>
-    </div>
-    <div class="hist-summary-grid">
-      ${entries.map(e => `
-        <div class="hist-summary-card">
-          <div class="hist-summary-icon">${e.icon}</div>
-          <div class="hist-summary-info">
-            <div class="hist-summary-name">${e.name}</div>
-            <div class="hist-summary-sessions">${e.sessions} session${e.sessions !== 1 ? 's' : ''}</div>
-          </div>
-          <div class="hist-summary-total">${_fmtHrs(e.totalHrs)}</div>
-        </div>`).join('')}
-    </div>`;
-  container.appendChild(section);
 }
 
 function _niceDate(dateStr) {
@@ -3035,12 +2983,11 @@ function swLogTime() {
   });
 
   saveUserData();
-  if (typeof renderHistory         === 'function') renderHistory();
-  if (typeof renderCalendar        === 'function') renderCalendar();
-  if (typeof renderCalendar2       === 'function') renderCalendar2();
-  if (typeof renderTrends          === 'function') renderTrends();
-  if (typeof renderTodayTracker    === 'function') renderTodayTracker();
-  if (typeof renderTrackerSchedules === 'function') renderTrackerSchedules();
+  if (typeof renderHistory      === 'function') renderHistory();
+  if (typeof renderCalendar     === 'function') renderCalendar();
+  if (typeof renderCalendar2    === 'function') renderCalendar2();
+  if (typeof renderTrends       === 'function') renderTrends();
+  if (typeof renderTodayTracker === 'function') renderTodayTracker();
 
   const msg = document.getElementById('sw-log-msg');
   msg.textContent = `✅ Saved ${_swFmt(ms)} of ${cat} to History!`;

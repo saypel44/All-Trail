@@ -1410,3 +1410,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .hist-summary-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hist-summary-sessions{font-size:11px;color:var(--hint);margin-top:2px}
 .hist-summary-total{font-size:16px;font-weight:700;color:var(--green-dk);flex-shrink:0;font-family:'Fraunces',serif}
+
+/* ── History entry source badges ── */
+.sc-history-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;background:var(--purple-lt);color:var(--purple);vertical-align:middle}
+.sc-history-badge.sw-badge{background:var(--amber-lt);color:var(--amber)}

@@ -228,6 +228,42 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .trend-act-arrow.neutral{color:var(--muted)}
 .trend-act-avg{font-size:10px;color:var(--hint);margin-top:1px}
 
+.wallet-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,#EEF7F3,#F7F5F1);border:1px solid rgba(29,158,117,0.12);border-radius:24px;padding:18px 20px;margin-bottom:18px}
+.wallet-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.wallet-card{background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:110px}
+.wallet-card-label{font-size:12px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.08em}
+.wallet-card-value{font-size:28px;font-weight:700;color:var(--text)}
+.wallet-card-meta{font-size:12px;color:var(--muted);line-height:1.5}
+.wallet-panel{display:grid;gap:16px}
+.reward-summary{background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:18px}
+.reward-summary h3{font-size:15px;font-weight:600;margin-bottom:10px}
+.reward-summary p{font-size:13px;color:var(--muted);line-height:1.6}
+.reward-status{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.reward-status span{font-size:13px;color:var(--text)}
+.reward-claim-btn{width:100%;margin-top:14px;padding:12px;background:var(--green);border:none;border-radius:18px;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.reward-claim-btn:disabled{background:var(--surf3);color:var(--hint);cursor:not-allowed}
+.reward-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.reward-day{background:var(--surf);border:1px solid var(--border);border-radius:18px;padding:12px;text-align:center;font-size:12px;color:var(--muted)}
+.reward-day.active{border-color:var(--green);background:rgba(29,158,117,0.08);color:var(--green-dk);font-weight:600}
+.reward-day.claimed{border-color:var(--green-dk);background:var(--green-lt);color:var(--green-dk)}
+.reward-day.locked{opacity:.45}
+.payment-card{background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:18px}
+.payment-card h3{font-size:15px;font-weight:600;margin-bottom:10px}
+.payment-card p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px}
+.payment-row{display:grid;gap:12px}
+.payment-row.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.payment-option{border:1px solid var(--border);border-radius:16px;padding:12px;cursor:pointer;background:var(--surf2);transition:all .15s;display:flex;align-items:center;justify-content:space-between}
+.payment-option.sel{border-color:var(--green);background:var(--green-lt);color:var(--green-dk)}
+.payment-option:hover{border-color:var(--green)}
+.payment-input{width:100%;padding:12px;border:1px solid var(--border);border-radius:16px;font-size:13px;background:var(--surf2);outline:none}
+.payment-note{font-size:12px;color:var(--hint);line-height:1.5}
+.payment-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.payment-step-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--surf2);font-size:12px;color:var(--muted);font-weight:600}
+.payment-summary{background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);border-radius:16px;padding:14px;margin-top:12px}
+.payment-summary strong{color:var(--text)}
+.payment-error{font-size:12px;color:var(--red);margin-top:8px}
+.payment-success{font-size:13px;color:var(--green-dk);margin-top:8px}
+
 /* ── ALARM MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal-box{background:#fff;border-radius:20px;padding:24px;max-width:380px;width:100%;animation:cardUp .3s both;text-align:center}

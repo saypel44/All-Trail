@@ -27,6 +27,20 @@ function getUserData() {
       _currentData = { logs:[], alarms:{}, habitEnabled:{}, selectedSounds:{}, customSounds:{}, checkInHistory:[], quickAlarms:[] };
     }
     if (!_currentData.quickAlarms) _currentData.quickAlarms = [];
+    if (!_currentData.wallet) {
+      _currentData.wallet = {
+        available: 0,
+        earned: 0,
+        spent: 0,
+        streakDays: 0,
+        lastClaim: '',
+        rewardCalendar: [2, 4, 6, 8, 10, 12, 16],
+        purchaseHistory: []
+      };
+    }
+    if (!_currentData.wallet.rewardCalendar) {
+      _currentData.wallet.rewardCalendar = [2, 4, 6, 8, 10, 12, 16];
+    }
   }
   return _currentData;
 }
@@ -156,8 +170,241 @@ function showTab(t) {
     }
   });
   if(t==='trends') renderTrends();
+  if(t==='rewards') renderRewards();
   if(t==='history'){ renderCalendar(); renderHistory(); }
 }
+
+const TOKEN_RATE = 0.5;
+const BANKS = [
+  'Bank of Bhutan Limited (BoBL)',
+  'Bhutan National Bank Limited',
+  'Druk PNBL',
+  'Bhutan Development Bank Ltd.',
+  'T Bank Ltd.'
+];
+const OTP_CODE = '951107';
+let walletFlow = { step: 1, amount: 100, bank: BANKS[0], account: '', otp: '', message: '', status: '' };
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysBetween(dateA, dateB) {
+  const a = new Date(dateA + 'T00:00');
+  const b = new Date(dateB + 'T00:00');
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+function getWalletData() {
+  const ud = getUserData();
+  if (!ud) return null;
+  if (!ud.wallet) {
+    ud.wallet = {
+      available: 0,
+      earned: 0,
+      spent: 0,
+      streakDays: 0,
+      lastClaim: '',
+      rewardCalendar: [2, 4, 6, 8, 10, 12, 16],
+      purchaseHistory: []
+    };
+    saveUserData();
+  }
+  if (!ud.wallet.rewardCalendar) ud.wallet.rewardCalendar = [2, 4, 6, 8, 10, 12, 16];
+  return ud.wallet;
+}
+
+function setRechargeStep(step) {
+  walletFlow.step = Math.max(1, Math.min(step, 4));
+  walletFlow.status = '';
+  walletFlow.message = '';
+  renderRewards();
+}
+
+function setRechargeAmount(value) {
+  const amount = Number(value);
+  walletFlow.amount = Number.isFinite(amount) && amount > 0 ? Math.max(1, Math.round(amount)) : 100;
+  renderRewards();
+}
+
+function selectRechargeBank(bank) {
+  walletFlow.bank = bank;
+  walletFlow.step = 2;
+  walletFlow.status = '';
+  walletFlow.message = '';
+  renderRewards();
+}
+
+function updateRechargeAccount(value) {
+  walletFlow.account = value.replace(/[^0-9]/g, '').slice(0, 20);
+  renderRewards();
+}
+
+function setRechargeOtp(value) {
+  walletFlow.otp = value.replace(/[^0-9]/g, '').slice(0, 8);
+  renderRewards();
+}
+
+function sendRechargeOtp() {
+  walletFlow.step = 4;
+  walletFlow.otp = '';
+  walletFlow.status = 'otp-sent';
+  walletFlow.message = '';
+  renderRewards();
+}
+
+function completeRechargePayment() {
+  const wallet = getWalletData();
+  if (walletFlow.otp !== OTP_CODE) {
+    walletFlow.message = 'The code is incorrect. Try 951107.';
+    walletFlow.status = 'error';
+    renderRewards();
+    return;
+  }
+  wallet.available += walletFlow.amount;
+  wallet.earned += walletFlow.amount;
+  wallet.purchaseHistory.push({
+    amount: walletFlow.amount,
+    bank: walletFlow.bank,
+    account: walletFlow.account,
+    purchasedAt: new Date().toISOString()
+  });
+  saveUserData();
+  walletFlow.status = 'success';
+  walletFlow.message = `Payment complete — +${walletFlow.amount} tokens added.`;
+  walletFlow.step = 1;
+  walletFlow.amount = 100;
+  walletFlow.account = '';
+  walletFlow.otp = '';
+  renderRewards();
+}
+
+function canClaimDaily() {
+  const wallet = getWalletData();
+  return wallet && wallet.lastClaim !== todayStr();
+}
+
+function claimDailyReward() {
+  const wallet = getWalletData();
+  const today = todayStr();
+  if (wallet.lastClaim === today) {
+    walletFlow.message = 'You already claimed today.';
+    walletFlow.status = 'error';
+    renderRewards();
+    return;
+  }
+  const streakContinues = wallet.lastClaim && daysBetween(wallet.lastClaim, today) === 1;
+  wallet.streakDays = streakContinues ? Math.min(wallet.streakDays + 1, 7) : 1;
+  const reward = wallet.rewardCalendar[Math.min(wallet.streakDays, 7) - 1];
+  wallet.available += reward;
+  wallet.earned += reward;
+  wallet.lastClaim = today;
+  saveUserData();
+  walletFlow.message = `+${reward} tokens claimed! Your streak is now ${wallet.streakDays} day${wallet.streakDays === 1 ? '' : 's'}.`;
+  walletFlow.status = 'success';
+  renderRewards();
+}
+
+function formatNgultrum(value) {
+  return `Nu. ${value.toFixed(2)}`;
+}
+
+function renderRewards() {
+  const panel = document.getElementById('wallet-panel');
+  if (!panel) return;
+  const wallet = getWalletData();
+  document.getElementById('wallet-available').textContent = wallet.available;
+  document.getElementById('wallet-earned').textContent = wallet.earned;
+  document.getElementById('wallet-spent').textContent = wallet.spent;
+  const today = todayStr();
+  const canClaim = wallet.lastClaim !== today;
+  const nextDay = Math.min(wallet.streakDays + 1, 7);
+  const nextReward = wallet.rewardCalendar[nextDay - 1] || wallet.rewardCalendar[0];
+  const lastClaimText = wallet.lastClaim ? new Date(wallet.lastClaim + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never';
+
+  const rewardBoxes = wallet.rewardCalendar.map((points, index) => {
+    const day = index + 1;
+    const isClaimed = day <= wallet.streakDays;
+    const isToday = canClaim && day === wallet.streakDays + 1;
+    const cls = isClaimed ? 'claimed' : isToday ? 'active' : 'locked';
+    const label = isClaimed ? 'Done' : isToday ? 'Today' : 'Locked';
+    return `<div class="reward-day ${cls}"><div style="font-weight:700">Day ${day}</div><div>+${points}</div><div style="font-size:11px;margin-top:6px">${label}</div></div>`;
+  }).join('');
+
+  let stepHtml = '';
+  if (walletFlow.step === 1) {
+    stepHtml = `
+      <div class="payment-row grid-2">
+        ${[100, 200, 500, 1000].map(amount => `
+          <button type="button" class="payment-option ${walletFlow.amount===amount?'sel':''}" onclick="setRechargeAmount(${amount})">${amount} coins</button>
+        `).join('')}
+      </div>
+      <div class="payment-row">
+        <input class="payment-input" type="number" min="1" value="${walletFlow.amount}" onchange="setRechargeAmount(this.value)" placeholder="Enter coins" />
+        <div class="payment-note">Rate ${formatNgultrum(TOKEN_RATE)} per coin · Total ${formatNgultrum(walletFlow.amount * TOKEN_RATE)}</div>
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(2)">Continue</button>
+      </div>
+    `;
+  } else if (walletFlow.step === 2) {
+    stepHtml = `
+      <div class="payment-row">
+        ${BANKS.map(bank => `
+          <button type="button" class="payment-option ${walletFlow.bank===bank?'sel':''}" onclick="selectRechargeBank('${bank.replace(/'/g,'\\\'')}')">${bank}</button>
+        `).join('')}
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(1)">Back</button>
+        <button type="button" class="auth-btn" onclick="setRechargeStep(3)">Continue</button>
+      </div>
+    `;
+  } else if (walletFlow.step === 3) {
+    const accountReady = walletFlow.account.length >= 8;
+    stepHtml = `
+      <div class="payment-row">
+        <input class="payment-input" type="text" value="${walletFlow.account}" oninput="updateRechargeAccount(this.value)" placeholder="Registered account number" />
+        <div class="payment-note">Bank: ${walletFlow.bank}</div>
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(2)">Back</button>
+        <button type="button" class="auth-btn" onclick="sendRechargeOtp()" ${accountReady ? '' : 'disabled'}>Send OTP</button>
+      </div>
+    `;
+  } else {
+    const isBoBL = walletFlow.bank.includes('BoBL');
+    stepHtml = `
+      <div class="payment-row">
+        <input class="payment-input" type="text" value="${walletFlow.otp}" oninput="setRechargeOtp(this.value)" placeholder="Enter OTP" />
+        ${isBoBL ? `<div class="payment-note">SMS from BoBL: "Your OTP is 951107"</div>` : `<div class="payment-note">One-time OTP sent to your mobile.</div>`}
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(3)">Back</button>
+        <button type="button" class="auth-btn" onclick="completeRechargePayment()">Complete Payment</button>
+      </div>
+    `;
+  }
+
+  panel.innerHTML = `
+    <div class="reward-summary">
+      <h3>Daily streak</h3>
+      <p>${wallet.streakDays ? `You are on a ${wallet.streakDays}-day streak.` : 'Currently at 0 days.'}</p>
+      <div class="reward-status"><span>${canClaim ? 'Ready to claim!' : 'Claimed today'}</span><span>Last claimed: ${lastClaimText}</span></div>
+      <div class="reward-status"><span>Next reward: +${nextReward} tokens</span></div>
+      <button type="button" class="reward-claim-btn" onclick="claimDailyReward()" ${!canClaim ? 'disabled' : ''}>${canClaim ? 'Claim reward' : 'Already claimed'}</button>
+    </div>
+    <div class="reward-calendar">${rewardBoxes}</div>
+    <div class="payment-card">
+      <div class="payment-step-pill">Step ${walletFlow.step} of 4</div>
+      <h3>Recharge wallet</h3>
+      <p>Buy tokens with a Bhutanese bank. Rate is ${formatNgultrum(TOKEN_RATE)} per token.</p>
+      ${stepHtml}
+      ${walletFlow.message ? `<div class="${walletFlow.status === 'success' ? 'payment-success' : 'payment-error'}">${walletFlow.message}</div>` : ''}
+    </div>
+    <div class="payment-summary"><strong>Supported banks:</strong> ${BANKS.join(', ')}</div>
+  `;
+}
+
 
 /* ═══════════════════════════════════════
    CHECK-IN LOGIC
@@ -1462,6 +1709,11 @@ function renderTrends(){
   const content=document.getElementById('trends-content');
   if(!content)return;
   const ud=getUserData();
+  const wallet=getWalletData();
+  if(!wallet || wallet.available < 1){
+    content.innerHTML=`<div class="no-data-msg"><div class="no-data-icon">🔒</div><div>Trends are locked until you have tokens.</div><div style="margin-top:6px;font-size:12px;color:var(--hint)">Purchase tokens or claim your daily reward in Rewards.</div><button class="export-btn" onclick="showTab('rewards')" style="margin-top:14px">Open Rewards</button></div>`;
+    return;
+  }
   if(!ud||!ud.logs.length){
     content.innerHTML=`<div class="no-data-msg"><div class="no-data-icon">📊</div><div>No habit logs yet.</div><div style="margin-top:6px;font-size:12px">Log your habits in the Tracker tab to see trends here.</div></div>`;
     return;

@@ -165,6 +165,7 @@ function showTab(t) {
        (t==='tracker'&&b.textContent.includes('Tracker'))||
        (t==='history'&&b.textContent.includes('History'))||
        (t==='trends'&&b.textContent.includes('Trends'))||
+       (t==='rewards'&&b.textContent.includes('Rewards'))||
        (t==='tools'&&b.textContent.includes('Tools'))) {
       b.classList.add('active');
     }

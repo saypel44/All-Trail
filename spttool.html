@@ -193,6 +193,61 @@
       </div>
       <div id="tracker-schedule-list"></div>
     </div>
+
+    <!-- ── TRACKER STOPWATCH ── -->
+    <div class="trk-sw-card" id="trk-sw-card">
+      <div class="trk-sw-header">
+        <div class="trk-sw-title">⏱ Activity Stopwatch</div>
+        <div class="trk-sw-subtitle">Start the timer, pick an activity, save to History</div>
+      </div>
+
+      <!-- Activity selector -->
+      <div class="trk-sw-section">
+        <div class="trk-sw-label">🎯 Select Activity</div>
+        <div class="trk-sw-cats" id="trk-sw-cats">
+          <button type="button" class="trk-sw-cat-btn" data-cat="Sleep" data-icon="😴" onclick="trkSwSelectCat(this)">😴 Sleep</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Work" data-icon="💻" onclick="trkSwSelectCat(this)">💻 Work</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Studies" data-icon="📚" onclick="trkSwSelectCat(this)">📚 Studies</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Exercise" data-icon="🏃" onclick="trkSwSelectCat(this)">🏃 Exercise</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Meals" data-icon="🍽" onclick="trkSwSelectCat(this)">🍽 Meals</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Screen Use" data-icon="📱" onclick="trkSwSelectCat(this)">📱 Screen Use</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Reading" data-icon="📖" onclick="trkSwSelectCat(this)">📖 Reading</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Meditation" data-icon="🧘" onclick="trkSwSelectCat(this)">🧘 Meditation</button>
+          <button type="button" class="trk-sw-cat-btn" data-cat="Other" data-icon="✍" onclick="trkSwSelectCat(this)">✍ Other</button>
+        </div>
+        <input type="text" class="trk-sw-custom" id="trk-sw-custom" placeholder="Or type a custom activity…" oninput="trkSwClearCat()">
+      </div>
+
+      <!-- Timer display -->
+      <div class="trk-sw-display-wrap">
+        <div class="trk-sw-activity-label" id="trk-sw-activity-label">—</div>
+        <div class="trk-sw-display" id="trk-sw-display">00:00:00</div>
+        <div class="trk-sw-status" id="trk-sw-status">Select an activity to start</div>
+      </div>
+
+      <!-- Controls -->
+      <div class="trk-sw-controls">
+        <button class="trk-sw-btn start" id="trk-sw-start-btn" onclick="trkSwStartStop()">▶ Start</button>
+        <button class="trk-sw-btn stop" id="trk-sw-stop-btn" onclick="trkSwStop()" disabled>⏹ Stop</button>
+        <button class="trk-sw-btn reset" id="trk-sw-reset-btn" onclick="trkSwReset()" disabled>↺ Reset</button>
+      </div>
+
+      <!-- Save section (shown after stop) -->
+      <div class="trk-sw-save-section" id="trk-sw-save-section" style="display:none">
+        <div class="trk-sw-result-row">
+          <span class="trk-sw-result-icon" id="trk-sw-result-icon">⏱</span>
+          <div>
+            <div class="trk-sw-result-name" id="trk-sw-result-name">Activity</div>
+            <div class="trk-sw-result-time" id="trk-sw-result-time">00:00:00</div>
+          </div>
+        </div>
+        <button class="trk-sw-save-btn" onclick="trkSwSave()">💾 Save to History</button>
+        <div class="auth-msg" id="trk-sw-msg" style="margin-top:8px"></div>
+      </div>
+
+      <!-- Today's sessions list -->
+      <div id="trk-sw-sessions" style="margin-top:12px"></div>
+    </div>
   </div>
 
   <!-- ── HISTORY TAB ── -->
@@ -226,7 +281,11 @@
 
     <!-- History list -->
     <div style="margin-top:20px">
-      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:10px">All Logs</div>
+      <!-- Daily Summary -->
+      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:10px">Daily Summary</div>
+      <div id="history-daily-summary"></div>
+
+      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:10px;margin-top:20px">All Logs</div>
       <div id="history-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
       <div id="history-content"></div>
     </div>

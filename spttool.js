@@ -1490,7 +1490,7 @@ function renderTrends(){
     if(!byActivity[key]){
       byActivity[key]={name:l.habitName,icon:l.habitIcon||'📋',byDate:{}};
     }
-    /* Prefer computed hours from startTime/endTime difference */
+    /* Prefer computed hrs from startTime/endTime difference; fallback to stored duration */
     let durationHrs;
     const startMins=_parseDisplayTime(l.startTime);
     const endMins=_parseDisplayTime(l.endTime);
@@ -1499,7 +1499,6 @@ function renderTrends(){
       if(diff<0)diff+=24*60; // crosses midnight
       durationHrs=diff/60;
     } else {
-      // Normalise legacy entries saved in mins to hrs
       durationHrs = l.unit==='mins' ? l.duration/60 : l.duration;
     }
     byActivity[key].byDate[l.date]=(byActivity[key].byDate[l.date]||0)+durationHrs;
@@ -1845,15 +1844,76 @@ let historyFilter = 'all';
 function renderHistory() {
   const content = document.getElementById('history-content');
   const filterWrap = document.getElementById('history-filter');
+  const summaryEl = document.getElementById('history-daily-summary');
   if (!content || !filterWrap) return;
 
   const ud = getUserData();
   if (!ud || !ud.logs.length) {
+    if (summaryEl) summaryEl.innerHTML = '';
     filterWrap.innerHTML = '';
     content.innerHTML = `<div class="no-data-msg"><div class="no-data-icon">📖</div><div>No logs yet.</div><div style="margin-top:6px;font-size:12px">Log habits in the Tracker tab and they'll appear here.</div></div>`;
     return;
   }
 
+  /* ── Daily Summary: aggregate all logs by date → activity → total hrs ── */
+  if (summaryEl) {
+    // Build: { date → { habitId → { name, icon, totalHrs } } }
+    const dayAgg = {};
+    ud.logs.forEach(l => {
+      if (!dayAgg[l.date]) dayAgg[l.date] = {};
+      const key = l.habitId || l.habitName.toLowerCase().replace(/\s+/g,'-');
+      if (!dayAgg[l.date][key]) {
+        dayAgg[l.date][key] = { name: l.habitName, icon: l.habitIcon || '📋', totalHrs: 0 };
+      }
+      // Always accumulate in hours
+      const hrs = l.unit === 'mins' ? l.duration / 60 : l.duration;
+      dayAgg[l.date][key].totalHrs += hrs;
+    });
+
+    const sortedDates = Object.keys(dayAgg).sort((a,b) => b.localeCompare(a));
+    if (!sortedDates.length) {
+      summaryEl.innerHTML = '';
+    } else {
+      summaryEl.innerHTML = sortedDates.map(dateStr => {
+        const d = new Date(dateStr + 'T12:00:00');
+        const today = new Date().toISOString().split('T')[0];
+        const isToday = dateStr === today;
+        const isYesterday = dateStr === new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const dateLabel = isToday ? 'Today'
+          : isYesterday ? 'Yesterday'
+          : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+        const activities = Object.values(dayAgg[dateStr]);
+        const rows = activities.map(a => {
+          // Format: show hrs if ≥1, else show mins
+          const totalMins = Math.round(a.totalHrs * 60);
+          let durStr;
+          if (a.totalHrs >= 1) {
+            const h = Math.floor(a.totalHrs);
+            const m = Math.round((a.totalHrs - h) * 60);
+            durStr = m > 0 ? `${h}h ${m}m` : `${h}h`;
+          } else {
+            durStr = `${totalMins}m`;
+          }
+          return `<div class="hist-daily-row">
+            <span class="hist-daily-act-icon">${a.icon}</span>
+            <span class="hist-daily-act-name">${a.name}</span>
+            <span class="hist-daily-act-dur">${durStr}</span>
+          </div>`;
+        }).join('');
+
+        return `<div class="hist-daily-card">
+          <div class="hist-daily-date">
+            ${isToday ? '<span class="hist-daily-date-badge">Today</span>' : ''}
+            ${dateLabel}
+          </div>
+          ${rows}
+        </div>`;
+      }).join('');
+    }
+  }
+
+  /* ── Filter buttons ── */
   const habitIds = [...new Set(ud.logs.map(l => l.habitId))];
   filterWrap.innerHTML = '';
   const allBtn = document.createElement('button');
@@ -1874,6 +1934,7 @@ function renderHistory() {
     filterWrap.appendChild(btn);
   });
 
+  /* ── All Logs list ── */
   const logs = ud.logs
     .filter(l => historyFilter === 'all' || l.habitId === historyFilter)
     .slice()
@@ -1899,12 +1960,15 @@ function renderHistory() {
       const item = document.createElement('div');
       item.className = 'log-entry-item';
       item.style.cssText = 'background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px';
+      // Display unit: prefer displayUnit, convert if needed
+      const dispUnit = l.displayUnit || l.unit || 'hrs';
+      const dispDur = (dispUnit === 'mins' && l.unit === 'hrs') ? Math.round(l.duration * 60) : l.duration;
       item.innerHTML = `
         <div class="log-entry-icon" style="flex-shrink:0">${l.habitIcon}</div>
         <div class="log-entry-meta" style="flex:1;min-width:0">
-          <div class="log-entry-habit">${l.habitName}</div>
+          <div class="log-entry-habit">${l.habitName}${l.fromStopwatch ? ' <span style="font-size:10px;background:var(--green-lt);color:var(--green-dk);border-radius:8px;padding:1px 6px;font-weight:600">⏱ SW</span>' : ''}</div>
           <div class="log-entry-dur">
-            <strong>${l.duration} ${l.unit}</strong>
+            <strong>${dispDur} ${dispUnit}</strong>
             ${l.startTime ? `<span style="color:var(--hint)"> · ${l.startTime}${l.endTime ? '–'+l.endTime : ''}</span>` : ''}
           </div>
           ${l.note ? `<div class="log-entry-note" style="margin-top:4px">💬 ${l.note}</div>` : ''}
@@ -2780,7 +2844,233 @@ function saCancelAlarm(id) {
 }
 
 /* ═══════════════════════════════════════
-   STOPWATCH
+   TRACKER STOPWATCH  (inside Tracker tab)
+═══════════════════════════════════════ */
+let _trkSwRunning = false;
+let _trkSwStartTime = 0;
+let _trkSwElapsed = 0;    // ms accumulated across pauses
+let _trkSwInterval = null;
+let _trkSwCat = '';
+let _trkSwIcon = '⏱';
+let _trkSwFinalMs = 0;    // captured when Stop is pressed
+
+function trkSwSelectCat(btn) {
+  document.querySelectorAll('#trk-sw-cats .trk-sw-cat-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  _trkSwCat = btn.dataset.cat;
+  _trkSwIcon = btn.dataset.icon || '⏱';
+  document.getElementById('trk-sw-custom').value = '';
+  _trkSwUpdateLabel();
+}
+
+function trkSwClearCat() {
+  document.querySelectorAll('#trk-sw-cats .trk-sw-cat-btn').forEach(b => b.classList.remove('sel'));
+  _trkSwCat = '';
+  _trkSwIcon = '✍';
+  _trkSwUpdateLabel();
+}
+
+function _trkSwGetCat() {
+  const custom = document.getElementById('trk-sw-custom').value.trim();
+  return { cat: custom || _trkSwCat, icon: custom ? '✍' : _trkSwIcon };
+}
+
+function _trkSwUpdateLabel() {
+  const { cat } = _trkSwGetCat();
+  const lbl = document.getElementById('trk-sw-activity-label');
+  if (lbl) lbl.textContent = cat || '—';
+}
+
+function trkSwStartStop() {
+  const startBtn = document.getElementById('trk-sw-start-btn');
+  const stopBtn  = document.getElementById('trk-sw-stop-btn');
+  const resetBtn = document.getElementById('trk-sw-reset-btn');
+  const { cat } = _trkSwGetCat();
+
+  if (!cat) {
+    const status = document.getElementById('trk-sw-status');
+    status.textContent = '⚠️ Please select or type an activity first.';
+    status.style.color = 'var(--amber)';
+    return;
+  }
+
+  if (!_trkSwRunning) {
+    // Start / Resume
+    _trkSwStartTime = Date.now();
+    _trkSwInterval = setInterval(_trkSwTick, 100);
+    _trkSwRunning = true;
+    startBtn.textContent = '⏸ Pause';
+    startBtn.classList.remove('start'); startBtn.classList.add('pause');
+    stopBtn.disabled = false;
+    resetBtn.disabled = false;
+    document.getElementById('trk-sw-save-section').style.display = 'none';
+    const status = document.getElementById('trk-sw-status');
+    status.textContent = '● Recording…';
+    status.style.color = 'var(--green)';
+    _trkSwUpdateLabel();
+  } else {
+    // Pause
+    _trkSwElapsed += Date.now() - _trkSwStartTime;
+    clearInterval(_trkSwInterval);
+    _trkSwRunning = false;
+    startBtn.textContent = '▶ Resume';
+    startBtn.classList.remove('pause'); startBtn.classList.add('start');
+    const status = document.getElementById('trk-sw-status');
+    status.textContent = 'Paused — press Resume to continue';
+    status.style.color = 'var(--hint)';
+  }
+}
+
+function trkSwStop() {
+  if (_trkSwRunning) {
+    _trkSwElapsed += Date.now() - _trkSwStartTime;
+    clearInterval(_trkSwInterval);
+    _trkSwRunning = false;
+  }
+  _trkSwFinalMs = _trkSwElapsed;
+
+  const startBtn = document.getElementById('trk-sw-start-btn');
+  const stopBtn  = document.getElementById('trk-sw-stop-btn');
+  startBtn.textContent = '▶ Start';
+  startBtn.classList.remove('pause'); startBtn.classList.add('start');
+  startBtn.disabled = true;
+  stopBtn.disabled = true;
+
+  const status = document.getElementById('trk-sw-status');
+  status.textContent = 'Stopped — save or reset below';
+  status.style.color = 'var(--hint)';
+
+  // Show save section
+  const { cat, icon } = _trkSwGetCat();
+  document.getElementById('trk-sw-result-icon').textContent = icon;
+  document.getElementById('trk-sw-result-name').textContent = cat;
+  document.getElementById('trk-sw-result-time').textContent = _trkSwFmt(_trkSwFinalMs);
+  document.getElementById('trk-sw-save-section').style.display = 'block';
+  document.getElementById('trk-sw-msg').textContent = '';
+  document.getElementById('trk-sw-msg').className = 'auth-msg';
+}
+
+function trkSwReset() {
+  clearInterval(_trkSwInterval);
+  _trkSwRunning = false;
+  _trkSwElapsed = 0;
+  _trkSwStartTime = 0;
+  _trkSwFinalMs = 0;
+
+  document.getElementById('trk-sw-display').textContent = '00:00:00';
+  const startBtn = document.getElementById('trk-sw-start-btn');
+  startBtn.textContent = '▶ Start';
+  startBtn.classList.remove('pause'); startBtn.classList.add('start');
+  startBtn.disabled = false;
+  document.getElementById('trk-sw-stop-btn').disabled = true;
+  document.getElementById('trk-sw-reset-btn').disabled = true;
+  document.getElementById('trk-sw-save-section').style.display = 'none';
+  document.getElementById('trk-sw-msg').textContent = '';
+  document.getElementById('trk-sw-msg').className = 'auth-msg';
+  const status = document.getElementById('trk-sw-status');
+  status.textContent = 'Select an activity to start';
+  status.style.color = 'var(--hint)';
+}
+
+function _trkSwTick() {
+  const total = _trkSwElapsed + (Date.now() - _trkSwStartTime);
+  const el = document.getElementById('trk-sw-display');
+  if (el) el.textContent = _trkSwFmt(total);
+}
+
+function _trkSwFmt(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function trkSwSave() {
+  const { cat, icon } = _trkSwGetCat();
+  const msg = document.getElementById('trk-sw-msg');
+  if (!cat) {
+    msg.textContent = 'Please select an activity first.';
+    msg.className = 'auth-msg err';
+    return;
+  }
+  const ud = getUserData();
+  if (!ud) return;
+  const ms = _trkSwFinalMs;
+  if (!ms) {
+    msg.textContent = 'No time recorded yet.';
+    msg.className = 'auth-msg err';
+    return;
+  }
+  const hrs = +(ms / 3600000).toFixed(4);
+  const habitId = LF_CAT_HABIT_MAP[cat] || cat.toLowerCase().replace(/\s+/g,'-');
+  const today = new Date().toISOString().split('T')[0];
+
+  ud.logs.push({
+    id: Date.now(),
+    habitId,
+    habitName: cat,
+    habitIcon: icon,
+    date: today,
+    duration: hrs,
+    unit: 'hrs',
+    startTime: '',
+    endTime: '',
+    note: `⏱ Stopwatch · ${_trkSwFmt(ms)}`,
+    fromStopwatch: true
+  });
+  saveUserData();
+
+  msg.textContent = `✅ Saved! ${cat} · ${_trkSwFmt(ms)}`;
+  msg.className = 'auth-msg ok';
+
+  renderHistory();
+  renderCalendar();
+  renderCalendar2();
+  renderTrends();
+  _trkSwRenderSessions();
+
+  // Auto-reset after save
+  setTimeout(() => trkSwReset(), 1800);
+}
+
+function _trkSwRenderSessions() {
+  const el = document.getElementById('trk-sw-sessions');
+  if (!el) return;
+  const ud = getUserData();
+  if (!ud) { el.innerHTML = ''; return; }
+  const today = new Date().toISOString().split('T')[0];
+  const todaySw = ud.logs.filter(l => l.date === today && l.fromStopwatch);
+  if (!todaySw.length) { el.innerHTML = ''; return; }
+
+  // Aggregate by activity for today
+  const agg = {};
+  todaySw.forEach(l => {
+    const k = l.habitId;
+    if (!agg[k]) agg[k] = { name: l.habitName, icon: l.habitIcon, totalMs: 0 };
+    agg[k].totalMs += l.duration * 3600000;
+  });
+
+  el.innerHTML = `<div class="trk-sw-sessions-wrap">
+    <div class="trk-sw-sessions-label">Today's stopwatch sessions</div>
+    ${Object.values(agg).map(a => `
+      <div class="trk-sw-session-row">
+        <span class="trk-sw-session-icon">${a.icon}</span>
+        <span class="trk-sw-session-name">${a.name}</span>
+        <span class="trk-sw-session-dur">${_trkSwFmt(a.totalMs)}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+/* Patch showTab to also render sessions when tracker opens */
+const _trkSwOrigShowTab = showTab;
+showTab = function(t) {
+  _trkSwOrigShowTab(t);
+  if (t === 'tracker') _trkSwRenderSessions();
+};
+
+/* ═══════════════════════════════════════
+   STOPWATCH  (Tools tab — kept as-is)
 ═══════════════════════════════════════ */
 let _swRunning = false;
 let _swStartTime = 0;

@@ -64,6 +64,7 @@
     <button class="nav-tab" onclick="showTab('tracker')">📋 Tracker</button>
     <button class="nav-tab" onclick="showTab('history')">📅 History</button>
     <button class="nav-tab" onclick="showTab('trends')">📈 Trends</button>
+    <button class="nav-tab" onclick="showTab('tools')">🛠 Tools</button>
   </div>
 
   <!-- ── CHECK-IN TAB ── -->
@@ -240,6 +241,83 @@
       <button class="export-btn" onclick="exportCSV()">📄 Export CSV</button>
     </div>
     <div id="trends-content"></div>
+  </div>
+
+  <!-- ── TOOLS TAB ── -->
+  <div id="tab-tools" class="tab-pane">
+    <p class="tracker-page-title">🛠 Tools</p>
+    <p class="tracker-page-sub">Quick utilities for your day.</p>
+
+    <!-- ── SINGLE ALARM ── -->
+    <div class="tool-card">
+      <div class="tool-card-title">⏰ Single Alarm</div>
+      <p class="tool-card-sub">Set a one-time alarm for any time today.</p>
+
+      <div class="add-alarm-row" style="margin-bottom:8px">
+        <div class="ampm-field" style="flex:1">
+          <label>Time</label>
+          <div class="ampm-wrap">
+            <select class="ampm-hour" id="sa-h"></select>
+            <span class="ampm-sep">:</span>
+            <select class="ampm-min" id="sa-m"></select>
+            <div class="ampm-toggle">
+              <button type="button" class="ampm-btn sel" id="sa-am" onclick="saSetAmPm('AM')">AM</button>
+              <button type="button" class="ampm-btn" id="sa-pm" onclick="saSetAmPm('PM')">PM</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--hint);font-weight:500">Label (optional)</label>
+        <input type="text" id="sa-label" class="aa-custom-input" placeholder="e.g. Take medicine, Call back…">
+      </div>
+
+      <div class="sound-opts" style="margin-bottom:12px">
+        <button class="sound-btn sel" data-sound="bell" onclick="saSelectSound(this)">🔔 Bell</button>
+        <button class="sound-btn" data-sound="chime" onclick="saSelectSound(this)">🎵 Chime</button>
+        <button class="sound-btn" data-sound="nature" onclick="saSelectSound(this)">🌿 Nature</button>
+        <button class="sound-btn" data-sound="soft" onclick="saSelectSound(this)">🎶 Soft</button>
+      </div>
+
+      <button class="auth-btn" onclick="setSingleAlarm()" id="sa-set-btn">⏰ Set Alarm</button>
+      <div id="sa-msg" class="auth-msg" style="margin-top:8px"></div>
+
+      <!-- Active alarms list -->
+      <div id="sa-list" style="margin-top:14px"></div>
+    </div>
+
+    <!-- ── STOPWATCH ── -->
+    <div class="tool-card" style="margin-top:16px">
+      <div class="tool-card-title">⏱ Stopwatch</div>
+      <p class="tool-card-sub">Track how long an activity takes.</p>
+
+      <div class="sw-display" id="sw-display">00:00:00</div>
+
+      <div class="sw-btns">
+        <button class="sw-btn start" id="sw-start-btn" onclick="swStartStop()">▶ Start</button>
+        <button class="sw-btn lap" id="sw-lap-btn" onclick="swLap()" disabled>⊕ Lap</button>
+        <button class="sw-btn reset" id="sw-reset-btn" onclick="swReset()" disabled>↺ Reset</button>
+      </div>
+
+      <!-- Log to habit after stopping -->
+      <div id="sw-log-section" style="display:none;margin-top:14px">
+        <div class="add-alarm-section-lbl" style="margin-bottom:8px">📝 Log this time to a habit?</div>
+        <div class="aa-categories" id="sw-categories">
+          <button type="button" class="aa-cat-btn" data-cat="Work" onclick="swSelectCat(this)">💻 Work</button>
+          <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="swSelectCat(this)">📚 Studies</button>
+          <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="swSelectCat(this)">🏃 Exercise</button>
+          <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="swSelectCat(this)">🧘 Meditation</button>
+          <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="swSelectCat(this)">📖 Reading</button>
+          <button type="button" class="aa-cat-btn" data-cat="Other" onclick="swSelectCat(this)">✍ Other</button>
+        </div>
+        <button class="log-btn" style="margin-top:10px;width:100%" onclick="swLogTime()">💾 Save to History</button>
+        <div id="sw-log-msg" class="auth-msg" style="margin-top:6px"></div>
+      </div>
+
+      <!-- Lap list -->
+      <div id="sw-laps" style="margin-top:10px"></div>
+    </div>
   </div>
 </div>
 

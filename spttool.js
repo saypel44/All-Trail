@@ -150,13 +150,13 @@ function showTab(t) {
     if((t==='check-in'&&b.textContent.includes('Check'))||
        (t==='tracker'&&b.textContent.includes('Tracker'))||
        (t==='history'&&b.textContent.includes('History'))||
-       (t==='trends'&&b.textContent.includes('Trends'))) {
+       (t==='trends'&&b.textContent.includes('Trends'))||
+       (t==='tools'&&b.textContent.includes('Tools'))) {
       b.classList.add('active');
     }
   });
   if(t==='trends') renderTrends();
   if(t==='history'){ renderCalendar(); renderHistory(); }
-  // tracker rendering is handled by the appended showTab override below
 }
 
 /* ═══════════════════════════════════════
@@ -2654,4 +2654,246 @@ function scToggleCardTask(scheduleId, taskIdx, cb) {
 
 function _escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+/* ═══════════════════════════════════════
+   TOOLS TAB — init selects on load
+═══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  // Populate single alarm selects
+  const saH = document.getElementById('sa-h');
+  const saM = document.getElementById('sa-m');
+  if (saH) {
+    for (let h = 1; h <= 12; h++) {
+      const o = document.createElement('option');
+      o.value = h; o.textContent = h;
+      if (h === 8) o.selected = true;
+      saH.appendChild(o);
+    }
+  }
+  if (saM) {
+    for (let m = 0; m < 60; m++) {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = String(m).padStart(2,'0');
+      if (m === 0) o.selected = true;
+      saM.appendChild(o);
+    }
+  }
+});
+
+/* ═══════════════════════════════════════
+   SINGLE ALARM
+═══════════════════════════════════════ */
+let _saSound = 'bell';
+let _saTimers = [];  // {id, timeout, time, label}
+
+function saSetAmPm(val) {
+  document.getElementById('sa-am').classList.toggle('sel', val === 'AM');
+  document.getElementById('sa-pm').classList.toggle('sel', val === 'PM');
+}
+
+function saSelectSound(btn) {
+  document.querySelectorAll('#tab-tools .sound-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  _saSound = btn.dataset.sound;
+  playSound(_saSound, null);
+}
+
+function _saGetTime() {
+  const h = parseInt(document.getElementById('sa-h').value) || 12;
+  const m = parseInt(document.getElementById('sa-m').value) || 0;
+  const isAM = document.getElementById('sa-am').classList.contains('sel');
+  return to24(h, m, isAM ? 'AM' : 'PM');
+}
+
+function setSingleAlarm() {
+  const time24 = _saGetTime();
+  const label = document.getElementById('sa-label').value.trim() || 'Alarm';
+  const msg = document.getElementById('sa-msg');
+  const now = new Date();
+  const [h, m] = time24.split(':').map(Number);
+  const alarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+  let delay = alarmTime - now;
+  if (delay <= 0) {
+    msg.textContent = '⚠️ That time has already passed today.';
+    msg.className = 'auth-msg err';
+    return;
+  }
+
+  const id = Date.now();
+  const f = fmt12(time24);
+  const displayTime = `${f.h}:${f.m} ${f.ampm}`;
+  const sound = _saSound;
+
+  const t = setTimeout(() => {
+    playSound(sound, null);
+    document.getElementById('alarm-modal-icon').textContent = '⏰';
+    document.getElementById('alarm-modal-title').textContent = label;
+    document.getElementById('alarm-modal-sub').textContent = `Single alarm · ${displayTime}`;
+    document.getElementById('alarm-modal').style.display = 'flex';
+    if (Notification.permission === 'granted') {
+      new Notification(`⏰ ${label}`, { body: displayTime });
+    }
+    // Remove from list
+    _saTimers = _saTimers.filter(a => a.id !== id);
+    _saRenderList();
+  }, delay);
+
+  _saTimers.push({ id, t, displayTime, label, sound });
+  _saRenderList();
+
+  msg.textContent = `✅ Alarm set for ${displayTime}`;
+  msg.className = 'auth-msg ok';
+  setTimeout(() => { msg.textContent = ''; msg.className = 'auth-msg'; }, 3000);
+}
+
+function _saRenderList() {
+  const list = document.getElementById('sa-list');
+  if (!list) return;
+  if (!_saTimers.length) { list.innerHTML = ''; return; }
+  list.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Active alarms</div>` +
+    _saTimers.map(a => `
+      <div class="sa-alarm-row">
+        <span class="sa-alarm-time">⏰ ${a.displayTime}</span>
+        <span class="sa-alarm-label">${_escHtml(a.label)}</span>
+        <button class="sa-cancel-btn" onclick="saCancelAlarm(${a.id})">✕</button>
+      </div>`).join('');
+}
+
+function saCancelAlarm(id) {
+  const entry = _saTimers.find(a => a.id === id);
+  if (entry) clearTimeout(entry.t);
+  _saTimers = _saTimers.filter(a => a.id !== id);
+  _saRenderList();
+}
+
+/* ═══════════════════════════════════════
+   STOPWATCH
+═══════════════════════════════════════ */
+let _swRunning = false;
+let _swStartTime = 0;
+let _swElapsed = 0;      // ms accumulated before last pause
+let _swInterval = null;
+let _swLaps = [];
+let _swCat = '';
+let _swFinalMs = 0;      // saved when stopped, for logging
+
+function swStartStop() {
+  const btn = document.getElementById('sw-start-btn');
+  const lapBtn = document.getElementById('sw-lap-btn');
+  const resetBtn = document.getElementById('sw-reset-btn');
+  const logSection = document.getElementById('sw-log-section');
+
+  if (!_swRunning) {
+    // Start
+    _swStartTime = Date.now();
+    _swInterval = setInterval(_swTick, 100);
+    _swRunning = true;
+    btn.textContent = '⏸ Pause';
+    btn.classList.remove('start'); btn.classList.add('pause');
+    lapBtn.disabled = false;
+    resetBtn.disabled = false;
+    logSection.style.display = 'none';
+    document.getElementById('sw-log-msg').textContent = '';
+  } else {
+    // Pause
+    _swElapsed += Date.now() - _swStartTime;
+    clearInterval(_swInterval);
+    _swRunning = false;
+    _swFinalMs = _swElapsed;
+    btn.textContent = '▶ Resume';
+    btn.classList.remove('pause'); btn.classList.add('start');
+    // Show log section when paused
+    logSection.style.display = 'block';
+  }
+}
+
+function _swTick() {
+  const total = _swElapsed + (Date.now() - _swStartTime);
+  document.getElementById('sw-display').textContent = _swFmt(total);
+}
+
+function _swFmt(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function swLap() {
+  const total = _swElapsed + (Date.now() - _swStartTime);
+  _swLaps.push(total);
+  _swRenderLaps();
+}
+
+function swReset() {
+  clearInterval(_swInterval);
+  _swRunning = false;
+  _swElapsed = 0;
+  _swStartTime = 0;
+  _swFinalMs = 0;
+  _swLaps = [];
+  _swCat = '';
+  document.getElementById('sw-display').textContent = '00:00:00';
+  const btn = document.getElementById('sw-start-btn');
+  btn.textContent = '▶ Start';
+  btn.classList.remove('pause'); btn.classList.add('start');
+  document.getElementById('sw-lap-btn').disabled = true;
+  document.getElementById('sw-reset-btn').disabled = true;
+  document.getElementById('sw-log-section').style.display = 'none';
+  document.getElementById('sw-laps').innerHTML = '';
+  document.getElementById('sw-log-msg').textContent = '';
+  document.querySelectorAll('#sw-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
+}
+
+function _swRenderLaps() {
+  const el = document.getElementById('sw-laps');
+  if (!el) return;
+  let prev = 0;
+  el.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Laps</div>` +
+    _swLaps.map((t, i) => {
+      const split = t - prev; prev = t;
+      return `<div class="sw-lap-row"><span class="sw-lap-num">Lap ${i+1}</span><span class="sw-lap-split">${_swFmt(split)}</span><span class="sw-lap-total">${_swFmt(t)}</span></div>`;
+    }).join('');
+}
+
+function swSelectCat(btn) {
+  document.querySelectorAll('#sw-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  _swCat = btn.dataset.cat;
+}
+
+function swLogTime() {
+  if (!_swCat) {
+    const msg = document.getElementById('sw-log-msg');
+    msg.textContent = 'Please select a category first.';
+    msg.className = 'auth-msg err';
+    return;
+  }
+  const ud = getUserData();
+  if (!ud) return;
+  const ms = _swFinalMs || _swElapsed;
+  const mins = ms / 60000;
+  const hrs = +(mins / 60).toFixed(2);
+  const catIcons = { 'Work':'💻','Studies':'📚','Exercise':'🏃','Meditation':'🧘','Reading':'📖','Other':'✍' };
+  ud.logs.push({
+    id: Date.now(),
+    habitId: 'stopwatch',
+    habitName: _swCat,
+    habitIcon: catIcons[_swCat] || '⏱',
+    date: new Date().toISOString().split('T')[0],
+    duration: hrs,
+    unit: 'hrs',
+    startTime: '',
+    endTime: '',
+    note: `Stopwatch · ${_swFmt(ms)}`
+  });
+  saveUserData();
+  renderHistory();
+  renderCalendar();
+  renderCalendar2();
+  renderTrends();
+  const msg = document.getElementById('sw-log-msg');
+  msg.textContent = `✅ Saved ${_swFmt(ms)} of ${_swCat} to History!`;
+  msg.className = 'auth-msg ok';
 }

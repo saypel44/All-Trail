@@ -362,10 +362,12 @@
         <div class="forgot-row"><button type="button" class="forgot-link" onclick="toggleForgotPanel()">Forgot password?</button></div>
         <div id="forgot-panel" class="forgot-panel" style="display:none">
           <div class="forgot-panel-title">Reset Password</div>
+          <form action="javascript:void(0)" onsubmit="doResetPassword()" autocomplete="on">
           <div class="field" style="margin-bottom:10px"><label>User ID</label><input id="fp-user" type="text" placeholder="Enter your user ID" autocomplete="username"></div>
           <div class="field" style="margin-bottom:10px"><label>New Password</label><div class="pw-wrap"><input id="fp-new-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('fp-new-pass',this)" tabindex="-1">👁</button></div></div>
           <div class="field" style="margin-bottom:10px"><label>Confirm Password</label><div class="pw-wrap"><input id="fp-confirm-pass" type="password" placeholder="Re-enter new password" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('fp-confirm-pass',this)" tabindex="-1">👁</button></div></div>
-          <button type="button" class="auth-btn" onclick="doResetPassword()">Reset Password →</button>
+          <button type="submit" class="auth-btn">Reset Password →</button>
+          </form>
           <div id="fp-msg" class="auth-msg"></div>
         </div>
         <div id="li-msg" class="auth-msg"></div>
@@ -828,6 +830,11 @@
     </div>
 
     <div id="st-msg" class="auth-msg" style="margin:0 20px 4px"></div>
+
+    <!-- Save -->
+    <div class="settings-actions">
+      <button class="auth-btn" onclick="saveSettings()">💾 Save Changes</button>
+    </div>
 
     <!-- Sign out -->
     <div class="settings-signout">

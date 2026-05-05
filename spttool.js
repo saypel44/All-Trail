@@ -1443,7 +1443,7 @@ function lfInit(){
   // Set today's date
   const dateEl=document.getElementById('lf-date');
   if(dateEl) dateEl.value=new Date().toISOString().split('T')[0];
-  // Wire live diff
+  // Wire live diff only if elements exist
   ['lf-start-h','lf-start-m','lf-end-h','lf-end-m'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('input',lfUpdateDiff);
@@ -1459,14 +1459,19 @@ function lfSetAmPm(side,val){
   lfUpdateDiff();
 }
 function _lfGetTime(side){
-  const h=document.getElementById(`lf-${side}-h`).value||'8';
-  const m=document.getElementById(`lf-${side}-m`).value||'00';
-  const isAM=document.getElementById(`lf-${side}-am`).classList.contains('sel');
+  const hEl=document.getElementById(`lf-${side}-h`);
+  const mEl=document.getElementById(`lf-${side}-m`);
+  const amEl=document.getElementById(`lf-${side}-am`);
+  if(!hEl||!mEl||!amEl) return null;
+  const h=hEl.value||'8';
+  const m=mEl.value||'00';
+  const isAM=amEl.classList.contains('sel');
   return to24(h,m,isAM?'AM':'PM');
 }
 function lfUpdateDiff(){
   const from=_lfGetTime('start');
   const to=_lfGetTime('end');
+  if(from===null||to===null) return;
   const diff=calcDiff(from,to);
   const el=document.getElementById('lf-diff');
   if(el) el.textContent=diff?`⏱ Duration: ${diff}`:'';

@@ -111,6 +111,7 @@ function doLogout() {
   currentUser = null;
   _currentData = null;
   restartForm();
+  document.getElementById('settings-modal').style.display = 'none';
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('auth-screen').classList.add('active');
   clearAuthMsgs();
@@ -119,6 +120,132 @@ function doLogout() {
   switchTab('login');
   window.scrollTo(0, 0);
 }
+
+/* ── Settings Modal ── */
+function openSettings() {
+  if (!currentUser) return;
+  const users = _loadUsers();
+  const u = users[currentUser.username] || {};
+  document.getElementById('st-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('st-display-name').textContent = currentUser.name;
+  document.getElementById('st-display-user').textContent = '#' + currentUser.username;
+  document.getElementById('st-name').value = currentUser.name;
+  document.getElementById('st-userid').value = currentUser.username;
+  document.getElementById('st-cur-pass').value = u.pass || '';
+  const msg = document.getElementById('st-msg');
+  msg.className = 'auth-msg';
+  msg.textContent = '';
+  document.getElementById('settings-modal').style.display = 'flex';
+}
+function closeSettings() {
+  document.getElementById('settings-modal').style.display = 'none';
+}
+function settingsOverlayClick(e) {
+  if (e.target === document.getElementById('settings-modal')) closeSettings();
+}
+function stCopyPassword() {
+  const val = document.getElementById('st-cur-pass').value;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.querySelector('.st-copy-btn');
+    if (btn) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = '📋'; }, 1500); }
+  }).catch(() => {});
+}
+function saveSettings() {
+  const newName   = document.getElementById('st-name').value.trim();
+  const newUserId = document.getElementById('st-userid').value.trim().toLowerCase();
+  const msg       = document.getElementById('st-msg');
+
+  if (!newName)   { msg.textContent = 'Name cannot be empty.'; msg.className = 'auth-msg err'; return; }
+  if (!newUserId) { msg.textContent = 'User ID cannot be empty.'; msg.className = 'auth-msg err'; return; }
+  if (newUserId.length < 3) { msg.textContent = 'User ID must be at least 3 characters.'; msg.className = 'auth-msg err'; return; }
+  if (!/^[a-z0-9_]+$/.test(newUserId)) { msg.textContent = 'User ID: letters, numbers and underscores only.'; msg.className = 'auth-msg err'; return; }
+
+  const users = _loadUsers();
+  const oldId = currentUser.username;
+  const u = users[oldId];
+  if (!u) { msg.textContent = 'Session error. Please sign in again.'; msg.className = 'auth-msg err'; return; }
+
+  if (newUserId !== oldId && users[newUserId]) {
+    msg.textContent = 'That User ID is already taken.'; msg.className = 'auth-msg err'; return;
+  }
+
+  u.name = newName;
+
+  if (newUserId !== oldId) {
+    users[newUserId] = u;
+    delete users[oldId];
+    const dataRaw = localStorage.getItem('qt_data_' + oldId);
+    if (dataRaw) {
+      localStorage.setItem('qt_data_' + newUserId, dataRaw);
+      localStorage.removeItem('qt_data_' + oldId);
+    }
+  }
+
+  _saveUsers(users);
+
+  currentUser.name     = newName;
+  currentUser.username = newUserId;
+  localStorage.setItem('qt_session', JSON.stringify({ username: newUserId }));
+
+  const firstName = newName.split(' ')[0];
+  document.getElementById('hdr-avatar').textContent      = newName.charAt(0).toUpperCase();
+  document.getElementById('hdr-name').textContent        = newName;
+  document.getElementById('greeting-name').textContent   = firstName;
+  document.getElementById('st-avatar').textContent       = newName.charAt(0).toUpperCase();
+  document.getElementById('st-display-name').textContent = newName;
+  document.getElementById('st-display-user').textContent = '#' + newUserId;
+  document.getElementById('st-userid').value             = newUserId;
+
+  msg.textContent = '✓ Changes saved!';
+  msg.className   = 'auth-msg ok';
+  setTimeout(() => { msg.className = 'auth-msg'; msg.textContent = ''; }, 3000);
+}
+
+/* ── Forgot Password ── */
+function toggleForgotPanel() {
+  const panel = document.getElementById('forgot-panel');
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    // Pre-fill User ID from the sign-in field if already typed
+    const uid = document.getElementById('li-user').value.trim();
+    if (uid) document.getElementById('fp-user').value = uid;
+    document.getElementById('fp-new-pass').value = '';
+    document.getElementById('fp-confirm-pass').value = '';
+    const fpMsg = document.getElementById('fp-msg');
+    fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
+  }
+}
+function doResetPassword() {
+  const userId  = document.getElementById('fp-user').value.trim().toLowerCase();
+  const newPass = document.getElementById('fp-new-pass').value;
+  const confirm = document.getElementById('fp-confirm-pass').value;
+  const msg     = document.getElementById('fp-msg');
+
+  if (!userId)  { msg.textContent = 'Please enter your User ID.'; msg.className = 'auth-msg err'; return; }
+  if (!newPass) { msg.textContent = 'Please enter a new password.'; msg.className = 'auth-msg err'; return; }
+  if (newPass.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.className = 'auth-msg err'; return; }
+  if (newPass !== confirm) { msg.textContent = 'Passwords do not match.'; msg.className = 'auth-msg err'; return; }
+
+  const users = _loadUsers();
+  if (!users[userId]) { msg.textContent = 'No account found with that User ID.'; msg.className = 'auth-msg err'; return; }
+
+  users[userId].pass = newPass;
+  _saveUsers(users);
+
+  msg.textContent = '✓ Password reset! You can now sign in.';
+  msg.className   = 'auth-msg ok';
+  // Pre-fill sign-in and close panel after short delay
+  setTimeout(() => {
+    document.getElementById('li-user').value = userId;
+    document.getElementById('li-pass').value = '';
+    document.getElementById('forgot-panel').style.display = 'none';
+    const fpMsg = document.getElementById('fp-msg');
+    fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
+  }, 1800);
+}
+
 
 // Wire up keyboard shortcuts and auto-login after DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -1461,6 +1588,9 @@ const TREND_PALETTE=[
   '#1D9E75','#534AB7','#BA7517','#C0392B','#2980B9','#8E44AD','#16A085','#D35400','#27AE60','#E91E8C'
 ];
 
+/* Track which activity is currently focused (null = show all) */
+let _trendFocusKey = null;
+
 function renderTrends(){
   const content=document.getElementById('trends-content');
   if(!content)return;
@@ -1474,13 +1604,12 @@ function renderTrends(){
   content.innerHTML='';
 
   /* ── 1. Build per-activity daily aggregates (all in hrs) ── */
-  const byActivity={};   // { activityKey: { name, icon, byDate:{date->totalHrs} } }
+  const byActivity={};
   ud.logs.forEach(l=>{
     const key=l.habitId||l.habitName.toLowerCase().replace(/\s+/g,'-');
     if(!byActivity[key]){
       byActivity[key]={name:l.habitName,icon:l.habitIcon||'📋',byDate:{}};
     }
-    // Normalise legacy entries saved in mins to hrs
     const durationHrs = l.unit==='mins' ? l.duration/60 : l.duration;
     byActivity[key].byDate[l.date]=(byActivity[key].byDate[l.date]||0)+durationHrs;
   });
@@ -1497,8 +1626,8 @@ function renderTrends(){
   const allDates=[...allDatesSet].sort();
   const dateLabels=allDates.map(d=>new Date(d+'T12:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}));
 
-  /* ── 3. Build datasets — one per activity, all in hrs ── */
-  const datasets=activityKeys.map((key,idx)=>{
+  /* ── 3. Build all datasets ── */
+  const allDatasets=activityKeys.map((key,idx)=>{
     const act=byActivity[key];
     const color=TREND_PALETTE[idx%TREND_PALETTE.length];
     const data=allDates.map(d=>act.byDate[d]!=null?+act.byDate[d].toFixed(2):null);
@@ -1508,8 +1637,8 @@ function renderTrends(){
       borderColor:color,
       backgroundColor:color+'22',
       pointBackgroundColor:color,
-      pointRadius:4,
-      pointHoverRadius:6,
+      pointRadius:5,
+      pointHoverRadius:8,
       tension:.35,
       fill:false,
       spanGaps:true,
@@ -1517,54 +1646,126 @@ function renderTrends(){
     };
   });
 
-  /* ── 4. Render combined chart card ── */
+  /* ── 4. Render chart card ── */
   const card=document.createElement('div');
   card.className='chart-card';
   card.style.cssText='padding:20px 16px 16px';
 
-  /* Legend chips */
-  const legendHTML=datasets.map((ds,i)=>{
-    const color=TREND_PALETTE[i%TREND_PALETTE.length];
-    return `<span class="trend-legend-chip" style="--chip-color:${color}">${ds.label}</span>`;
-  }).join('');
+  /* Build legend chips — clickable */
+  function buildLegendHTML(focusKey){
+    return allDatasets.map((ds,i)=>{
+      const color=TREND_PALETTE[i%TREND_PALETTE.length];
+      const isActive = !focusKey || focusKey===ds._key;
+      const opacity = isActive ? '1' : '0.35';
+      const fw = isActive ? '600' : '400';
+      return `<span class="trend-legend-chip" data-key="${ds._key}" style="--chip-color:${color};opacity:${opacity};font-weight:${fw};cursor:pointer;transition:opacity .2s">${ds.label}</span>`;
+    }).join('');
+  }
 
-  /* Trend badges per activity */
-  const trendBadgesHTML=activityKeys.map((key,i)=>{
-    const act=byActivity[key];
-    const vals=allDates.map(d=>act.byDate[d]||0).filter(v=>v>0);
-    const trend=calcTrend(vals);
-    const color=TREND_PALETTE[i%TREND_PALETTE.length];
-    const arrow=trend.dir==='up'?'↑':trend.dir==='down'?'↓':'→';
-    const label=trend.dir==='up'?'up':trend.dir==='down'?'down':'stable';
-    return `<div class="trend-act-badge" style="border-left:3px solid ${color}">
-      <span class="trend-act-name">${act.icon} ${act.name}</span>
-      <span class="trend-act-arrow ${trend.dir}">${arrow} ${label}</span>
-      <span class="trend-act-avg">avg ${trend.avg.toFixed(2)} hrs/day</span>
-    </div>`;
-  }).join('');
+  /* Build trend badges — clickable */
+  function buildBadgesHTML(focusKey){
+    return activityKeys.map((key,i)=>{
+      const act=byActivity[key];
+      const vals=allDates.map(d=>act.byDate[d]||0).filter(v=>v>0);
+      const trend=calcTrend(vals);
+      const color=TREND_PALETTE[i%TREND_PALETTE.length];
+      const arrow=trend.dir==='up'?'↑':trend.dir==='down'?'↓':'→';
+      const label=trend.dir==='up'?'up':trend.dir==='down'?'down':'stable';
+      const isActive = !focusKey || focusKey===key;
+      const ring = focusKey===key ? `box-shadow:0 0 0 2px ${color};` : '';
+      const opacity = isActive ? '1' : '0.35';
+      return `<div class="trend-act-badge" data-key="${key}" style="border-left:3px solid ${color};cursor:pointer;opacity:${opacity};transition:opacity .2s,box-shadow .2s;${ring}">
+        <span class="trend-act-name">${act.icon} ${act.name}</span>
+        <span class="trend-act-arrow ${trend.dir}">${arrow} ${label}</span>
+        <span class="trend-act-avg">avg ${trend.avg.toFixed(2)} hrs/day</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* Focus label shown below title */
+  function focusLabel(focusKey){
+    if(!focusKey) return '';
+    const idx = activityKeys.indexOf(focusKey);
+    const act = byActivity[focusKey];
+    const color = TREND_PALETTE[idx%TREND_PALETTE.length];
+    return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;background:${color}18;color:${color};border:1px solid ${color}44;border-radius:10px;padding:2px 9px;margin-left:8px;font-weight:600">${act.icon} ${act.name} only · <span style="cursor:pointer;font-weight:700" id="trend-clear-focus">✕ show all</span></span>`;
+  }
 
   card.innerHTML=`
-    <div class="chart-title" style="margin-bottom:4px">📈 Activity Trends</div>
-    <div class="chart-sub" style="margin-bottom:14px">Daily hours per activity — log + stopwatch combined · Y-axis in hours</div>
-    <div class="trend-legend-row">${legendHTML}</div>
+    <div class="chart-title" style="margin-bottom:4px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">📈 Activity Trends<span id="trend-focus-label">${focusLabel(_trendFocusKey)}</span></div>
+    <div class="chart-sub" style="margin-bottom:14px">Daily hours per activity · hover dots for info · <strong>click an activity</strong> to isolate its trendline</div>
+    <div class="trend-legend-row" id="trend-legend-row">${buildLegendHTML(_trendFocusKey)}</div>
     <div style="position:relative;width:100%;height:260px;margin-top:12px">
       <canvas id="chart-combined-trends" role="img" aria-label="Combined activity trends chart"></canvas>
     </div>
-    <div class="trend-acts-grid" style="margin-top:16px">${trendBadgesHTML}</div>`;
+    <div class="trend-acts-grid" id="trend-acts-grid" style="margin-top:16px">${buildBadgesHTML(_trendFocusKey)}</div>`;
 
   content.appendChild(card);
+
+  /* ── Helper: get datasets filtered by focus ── */
+  function getVisibleDatasets(focusKey){
+    if(!focusKey) return allDatasets;
+    return allDatasets.filter(ds=>ds._key===focusKey);
+  }
+
+  /* ── Apply focus: update chart + UI without full re-render ── */
+  function applyFocus(focusKey){
+    _trendFocusKey = focusKey;
+    const visDs = getVisibleDatasets(focusKey);
+
+    // Update chart data
+    const ch = chartInstances['combined'];
+    if(ch){
+      ch.config.data.datasets = visDs;
+      ch._draw();
+    }
+
+    // Update legend chips
+    const legendRow = document.getElementById('trend-legend-row');
+    if(legendRow) legendRow.innerHTML = buildLegendHTML(focusKey);
+
+    // Re-attach legend chip listeners
+    document.querySelectorAll('#trend-legend-row .trend-legend-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        const k = chip.dataset.key;
+        applyFocus(_trendFocusKey===k ? null : k);
+      });
+    });
+
+    // Update badges
+    const grid = document.getElementById('trend-acts-grid');
+    if(grid) grid.innerHTML = buildBadgesHTML(focusKey);
+
+    // Re-attach badge listeners
+    document.querySelectorAll('#trend-acts-grid .trend-act-badge').forEach(badge=>{
+      badge.addEventListener('click', ()=>{
+        const k = badge.dataset.key;
+        applyFocus(_trendFocusKey===k ? null : k);
+      });
+    });
+
+    // Update focus label
+    const lbl = document.getElementById('trend-focus-label');
+    if(lbl){
+      lbl.innerHTML = focusLabel(focusKey);
+      const clearBtn = document.getElementById('trend-clear-focus');
+      if(clearBtn) clearBtn.addEventListener('click', e=>{ e.stopPropagation(); applyFocus(null); });
+    }
+  }
 
   /* ── 5. Render chart ── */
   setTimeout(()=>{
     const ctx=document.getElementById('chart-combined-trends');
     if(!ctx)return;
+
+    const visDs = getVisibleDatasets(_trendFocusKey);
+
     chartInstances['combined']=new Chart(ctx,{
       type:'line',
-      data:{labels:dateLabels,datasets},
+      data:{labels:dateLabels, datasets: visDs},
       options:{
         responsive:true,
         maintainAspectRatio:false,
-        interaction:{mode:'index',intersect:false},
         plugins:{
           legend:{display:false},
           tooltip:{
@@ -1575,6 +1776,11 @@ function renderTrends(){
               }
             }
           }
+        },
+        onClick: function(dot){
+          // dot = { ds, i, v, label, color }
+          const key = dot.ds._key;
+          applyFocus(_trendFocusKey===key ? null : key);
         },
         scales:{
           x:{
@@ -1589,6 +1795,27 @@ function renderTrends(){
         }
       }
     });
+
+    /* Wire legend chip clicks after chart is ready */
+    document.querySelectorAll('#trend-legend-row .trend-legend-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        const k = chip.dataset.key;
+        applyFocus(_trendFocusKey===k ? null : k);
+      });
+    });
+
+    /* Wire badge clicks */
+    document.querySelectorAll('#trend-acts-grid .trend-act-badge').forEach(badge=>{
+      badge.addEventListener('click', ()=>{
+        const k = badge.dataset.key;
+        applyFocus(_trendFocusKey===k ? null : k);
+      });
+    });
+
+    /* Wire clear-focus button if focus is already active */
+    const clearBtn = document.getElementById('trend-clear-focus');
+    if(clearBtn) clearBtn.addEventListener('click', e=>{ e.stopPropagation(); applyFocus(null); });
+
   },50);
 
   /* ── 6. Sleep score card (if check-ins exist) ── */
@@ -3057,7 +3284,7 @@ function swClearCatIfTyping() {
 
 /* ── Save to History ── */
 function swLogTime() {
-  const customText = (document.getElementById('sw-custom-activity')?.value || '').trim();
+  const customText = (document.getElementById('sc-custom-activity')?.value || '').trim();
   const cat = customText || _swCat;
   if (!cat) {
     const msg = document.getElementById('sw-log-msg');

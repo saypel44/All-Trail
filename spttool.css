@@ -52,7 +52,40 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .user-pill:hover{border-color:var(--green)}
 .user-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#2EBF8E);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
 .user-pill-name{font-size:12px;font-weight:500;color:var(--text)}
-.logout-btn{font-size:11px;color:var(--muted);padding-left:4px}
+.user-pill-caret{font-size:13px;color:var(--muted);padding-left:2px;opacity:.7}
+
+/* ── SETTINGS MODAL ── */
+.settings-box{max-width:400px;width:100%;max-height:92vh;overflow-y:auto;text-align:left;padding:0;border-radius:20px}
+.settings-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:.5px solid var(--border);position:sticky;top:0;background:#fff;z-index:2;border-radius:20px 20px 0 0}
+.settings-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--text)}
+.settings-avatar-row{display:flex;align-items:center;gap:14px;padding:20px 20px 16px;border-bottom:.5px solid var(--border)}
+.settings-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#2EBF8E);color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.settings-avatar-info{display:flex;flex-direction:column;gap:3px}
+.settings-avatar-name{font-size:15px;font-weight:600;color:var(--text)}
+.settings-avatar-user{font-size:12px;color:var(--hint)}
+.settings-fields{padding:16px 20px 4px;display:flex;flex-direction:column;gap:14px}
+.settings-field{display:flex;flex-direction:column;gap:5px}
+.settings-field label{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.settings-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:14px;color:var(--text);background:var(--surf);outline:none;transition:all .2s}
+.settings-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,0.12)}
+.settings-input::placeholder{color:var(--hint)}
+.settings-input[readonly]{background:var(--surf2);color:var(--hint);cursor:not-allowed}
+.settings-input-pass{font-family:'Sora',sans-serif;letter-spacing:.05em;color:var(--green-dk);font-weight:500;background:var(--green-lt);border-color:rgba(29,158,117,0.2)}
+.st-copy-btn{font-size:14px !important}
+
+/* ── Forgot password ── */
+.forgot-row{text-align:right;margin-top:8px}
+.forgot-link{background:none;border:none;font-size:12px;color:var(--green);cursor:pointer;font-family:'Sora',sans-serif;padding:2px 0;text-decoration:underline;text-underline-offset:2px;transition:color .15s}
+.forgot-link:hover{color:var(--green-dk)}
+.forgot-panel{background:var(--surf2);border:1px solid rgba(29,158,117,0.2);border-radius:var(--rsm);padding:16px;margin-top:12px;animation:cardUp .25s both}
+.forgot-panel-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.forgot-panel-title::before{content:'🔑';font-size:14px}
+.settings-divider{height:.5px;background:var(--border);margin:4px 0}
+.settings-actions{padding:16px 20px 4px}
+.settings-actions .auth-btn{margin:0;width:100%}
+.settings-signout{padding:12px 20px 20px;display:flex;justify-content:center}
+.settings-signout-btn{background:none;border:none;font-size:13px;color:var(--muted);cursor:pointer;font-family:'Sora',sans-serif;padding:6px 16px;border-radius:20px;border:.5px solid var(--border);transition:all .2s}
+.settings-signout-btn:hover{background:var(--red-lt);color:var(--red);border-color:rgba(192,57,43,.2)}
 
 /* ── NAV TABS ── */
 .nav-tabs{display:flex;background:#fff;border-bottom:.5px solid var(--border);padding:0 16px;gap:4px;overflow-x:auto;position:sticky;top:62px;z-index:40}
@@ -373,11 +406,10 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
     font-size: 13px;
   }
   
-  /* App header */
+  /* App header - no wrap, keep on one line */
   .app-header {
-    padding: 12px 14px;
-    flex-wrap: wrap;
-    gap: 10px;
+    padding: 10px 14px;
+    flex-wrap: nowrap;
   }
   
   .app-logo-icon {
@@ -391,9 +423,39 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
   }
   
   .user-pill {
-    padding: 5px 10px 5px 6px;
+    padding: 5px 9px 5px 6px;
+    gap: 6px;
   }
   
+  .user-pill-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Settings modal mobile */
+  .settings-box {
+    max-height: 95vh;
+  }
+  
+  .settings-avatar-row {
+    padding: 16px 16px 14px;
+  }
+  
+  .settings-fields {
+    padding: 14px 16px 4px;
+    gap: 12px;
+  }
+  
+  .settings-actions {
+    padding: 12px 16px 4px;
+  }
+  
+  .settings-signout {
+    padding: 10px 16px 16px;
+  }
+
   .user-avatar {
     width: 24px;
     height: 24px;
@@ -1416,3 +1478,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 /* ── History entry source badges ── */
 .sc-history-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;background:var(--purple-lt);color:var(--purple);vertical-align:middle}
 .sc-history-badge.sw-badge{background:var(--amber-lt);color:var(--amber)}
+
+/* ── Trend badge interactive states ── */
+.trend-act-badge:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.trend-legend-chip:hover { filter: brightness(0.92); }

@@ -1,720 +1,1484 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Quick Tracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<script>
-/* ── Inline Chart.js-compatible line chart renderer ──
-   Covers all Chart usage in this app: type:'line' with
-   responsive canvas, tooltips, gridlines, tick callbacks.
-   No external dependencies, works from file:// with no
-   tracking-prevention issues.
-─────────────────────────────────────────────────────── */
-(function(global){
-  'use strict';
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1D9E75;--green-lt:#E1F5EE;--green-dk:#0F6E56;
+  --amber:#BA7517;--amber-lt:#FAEEDA;
+  --red:#C0392B;--red-lt:#FDEEEC;
+  --purple:#534AB7;--purple-lt:#EEF0FC;
+  --bg:#F7F5F1;--surf:#ffffff;--surf2:#F0EDE7;--surf3:#E8E4DC;
+  --text:#1a1816;--muted:#6b6660;--hint:#a09c96;
+  --border:rgba(0,0,0,0.08);--borderf:rgba(0,0,0,0.18);
+  --r:14px;--rsm:8px;--rxl:24px;
+  --shadow:0 2px 20px rgba(0,0,0,0.07);
+  --shadow-lg:0 8px 40px rgba(0,0,0,0.12);
+}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
 
-  const instances = new Map();
+/* ── AUTH ── */
+#auth-screen{align-items:center;justify-content:center;background:linear-gradient(135deg,#EEF7F3 0%,#F7F5F1 50%,#EDF3F8 100%);padding:24px;position:relative;overflow:hidden}
+#auth-screen::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(29,158,117,0.08) 0%,transparent 70%);top:-150px;right:-150px;pointer-events:none}
+#auth-screen::after{content:'';position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(29,158,117,0.06) 0%,transparent 70%);bottom:-100px;left:-100px;pointer-events:none}
+.auth-card{background:#fff;border-radius:20px;border:1px solid rgba(29,158,117,0.15);box-shadow:var(--shadow-lg);width:100%;max-width:400px;overflow:hidden;position:relative;z-index:1;animation:cardUp .5s cubic-bezier(.22,1,.36,1) both}
+@keyframes cardUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.auth-top{background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#2EBF8E 100%);padding:32px 28px 28px;text-align:center}
+.auth-top-icon{width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px}
+.auth-top h1{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:#fff}
+.auth-top p{font-size:12px;color:rgba(255,255,255,0.75);margin-top:5px}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surf2)}
+.auth-tab{flex:1;padding:13px;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;color:var(--muted);font-family:'Sora',sans-serif;transition:all .2s;border-bottom:2px solid transparent}
+.auth-tab.active{color:var(--green);border-bottom-color:var(--green);background:#fff}
+.auth-body{padding:24px 28px 28px}
+.field{margin-bottom:16px}
+.field label{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:6px}
+.field input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:14px;color:var(--text);background:var(--surf);outline:none;transition:all .2s}
+.field input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,0.12)}
+.field input::placeholder{color:var(--hint)}
+.pw-wrap{position:relative}
+.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--hint);font-size:13px;padding:2px}
+.auth-btn{width:100%;padding:12px;margin-top:4px;background:linear-gradient(135deg,#0F6E56,#1D9E75);border:none;border-radius:var(--rsm);color:#fff;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.02em}
+.auth-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(29,158,117,0.35)}
+.auth-msg{font-size:12px;margin-top:12px;padding:10px 12px;border-radius:var(--rsm);display:none}
+.auth-msg.err{background:var(--red-lt);color:var(--red);border:1px solid rgba(192,57,43,0.15);display:block}
+.auth-msg.ok{background:var(--green-lt);color:var(--green-dk);border:1px solid rgba(29,158,117,0.2);display:block}
 
-  function Chart(canvas, config) {
-    if (!(this instanceof Chart)) return new Chart(canvas, config);
-    this.canvas = canvas;
-    this.config = config;
-    this._tooltip = null;
-    const existing = instances.get(canvas);
-    if (existing) existing.destroy();
-    instances.set(canvas, this);
-    this._resize();
-    this._draw();
-    this._bindEvents();
+/* ── APP ── */
+#app-screen{flex-direction:column}
+.app-header{background:#fff;border-bottom:.5px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.app-logo{display:flex;align-items:center;gap:10px}
+.app-logo-icon{width:34px;height:34px;border-radius:10px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);display:flex;align-items:center;justify-content:center;font-size:16px}
+.app-logo span{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--text)}
+.user-pill{display:flex;align-items:center;gap:8px;background:var(--surf2);border:.5px solid var(--border);border-radius:20px;padding:6px 12px 6px 7px;cursor:pointer;transition:all .2s}
+.user-pill:hover{border-color:var(--green)}
+.user-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#2EBF8E);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.user-pill-name{font-size:12px;font-weight:500;color:var(--text)}
+.user-pill-caret{font-size:13px;color:var(--muted);padding-left:2px;opacity:.7}
+
+/* ── SETTINGS MODAL ── */
+.settings-box{max-width:400px;width:100%;max-height:92vh;overflow-y:auto;text-align:left;padding:0;border-radius:20px}
+.settings-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:.5px solid var(--border);position:sticky;top:0;background:#fff;z-index:2;border-radius:20px 20px 0 0}
+.settings-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--text)}
+.settings-avatar-row{display:flex;align-items:center;gap:14px;padding:20px 20px 16px;border-bottom:.5px solid var(--border)}
+.settings-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#2EBF8E);color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.settings-avatar-info{display:flex;flex-direction:column;gap:3px}
+.settings-avatar-name{font-size:15px;font-weight:600;color:var(--text)}
+.settings-avatar-user{font-size:12px;color:var(--hint)}
+.settings-fields{padding:16px 20px 4px;display:flex;flex-direction:column;gap:14px}
+.settings-field{display:flex;flex-direction:column;gap:5px}
+.settings-field label{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.settings-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:14px;color:var(--text);background:var(--surf);outline:none;transition:all .2s}
+.settings-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,0.12)}
+.settings-input::placeholder{color:var(--hint)}
+.settings-input[readonly]{background:var(--surf2);color:var(--hint);cursor:not-allowed}
+.settings-input-pass{font-family:'Sora',sans-serif;letter-spacing:.05em;color:var(--green-dk);font-weight:500;background:var(--green-lt);border-color:rgba(29,158,117,0.2)}
+.st-copy-btn{font-size:14px !important}
+
+/* ── Forgot password ── */
+.forgot-row{text-align:right;margin-top:8px}
+.forgot-link{background:none;border:none;font-size:12px;color:var(--green);cursor:pointer;font-family:'Sora',sans-serif;padding:2px 0;text-decoration:underline;text-underline-offset:2px;transition:color .15s}
+.forgot-link:hover{color:var(--green-dk)}
+.forgot-panel{background:var(--surf2);border:1px solid rgba(29,158,117,0.2);border-radius:var(--rsm);padding:16px;margin-top:12px;animation:cardUp .25s both}
+.forgot-panel-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.forgot-panel-title::before{content:'🔑';font-size:14px}
+.settings-divider{height:.5px;background:var(--border);margin:4px 0}
+.settings-actions{padding:16px 20px 4px}
+.settings-actions .auth-btn{margin:0;width:100%}
+.settings-signout{padding:12px 20px 20px;display:flex;justify-content:center}
+.settings-signout-btn{background:none;border:none;font-size:13px;color:var(--muted);cursor:pointer;font-family:'Sora',sans-serif;padding:6px 16px;border-radius:20px;border:.5px solid var(--border);transition:all .2s}
+.settings-signout-btn:hover{background:var(--red-lt);color:var(--red);border-color:rgba(192,57,43,.2)}
+
+/* ── NAV TABS ── */
+.nav-tabs{display:flex;background:#fff;border-bottom:.5px solid var(--border);padding:0 16px;gap:4px;overflow-x:auto;position:sticky;top:62px;z-index:40}
+.nav-tab{padding:12px 14px;font-size:12px;font-weight:500;color:var(--muted);border:none;background:none;cursor:pointer;font-family:'Sora',sans-serif;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
+.nav-tab.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-tab:hover{color:var(--text)}
+
+/* ── TABS CONTENT ── */
+.tab-pane{display:none;padding:0 16px 80px;max-width:640px;margin:0 auto;width:100%}
+.tab-pane.active{display:block}
+
+/* ── HERO ── */
+.hero{text-align:center;padding:28px 16px 20px}
+.hero-icon{width:60px;height:60px;border-radius:18px;background:var(--green-lt);border:1.5px solid rgba(29,158,117,0.25);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px}
+.hero h2{font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--text);margin-bottom:8px}
+.hero p{font-size:13px;color:var(--muted);line-height:1.7;max-width:380px;margin:0 auto 20px}
+.prog-wrap{margin:0 0 8px}
+.prog-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--hint);margin-bottom:5px}
+.prog-bar{height:4px;background:var(--surf3);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:var(--green);border-radius:3px;transition:width .3s ease}
+
+/* ── SECTION HEADERS ── */
+.sec-hdr{display:flex;align-items:center;gap:12px;margin:24px 0 12px}
+.sec-pill{display:flex;align-items:center;gap:7px;padding:5px 14px 5px 8px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid;white-space:nowrap}
+.sec-pill.a{background:var(--amber-lt);border-color:rgba(186,117,23,0.3);color:var(--amber)}
+.sec-pill.b{background:var(--green-lt);border-color:rgba(29,158,117,0.25);color:var(--green-dk)}
+.sec-pill.c{background:#EEF0FC;border-color:rgba(83,74,183,0.25);color:var(--purple)}
+.sec-dot{width:16px;height:16px;border-radius:50%;background:currentColor;display:flex;align-items:center;justify-content:center}
+.sec-dot span{font-size:9px;color:#fff;font-weight:700}
+.sec-line{flex:1;height:.5px;background:var(--border)}
+
+/* ── QUESTION CARDS ── */
+.q-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:10px;transition:border-color .2s}
+.q-card:hover{border-color:var(--borderf)}
+.q-num{font-size:10px;color:var(--hint);font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.q-title{font-size:14px;font-weight:500;color:var(--text);margin-bottom:14px;line-height:1.5}
+.opts{display:flex;flex-wrap:wrap;gap:7px}
+.opt{display:flex;align-items:center;gap:6px;border:1px solid var(--borderf);border-radius:20px;padding:8px 15px;font-size:13px;cursor:pointer;background:var(--surf2);color:var(--muted);font-family:'Sora',sans-serif;transition:all .15s;line-height:1.2}
+.opt:hover{border-color:var(--green);color:var(--text);background:var(--green-lt);transform:translateY(-1px)}
+.opt.sel{background:var(--green-lt);border-color:var(--green);border-width:1.5px;color:var(--green-dk);font-weight:500}
+.opt.sel::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);margin-left:2px}
+.opt-em{font-size:14px}
+.lik-row{display:flex;flex-direction:column;gap:16px}
+.lik-item{display:flex;flex-direction:column;gap:8px;padding-bottom:14px;border-bottom:.5px solid var(--border)}
+.lik-item:last-child{border-bottom:none;padding-bottom:0}
+.lik-label{font-size:13px;color:var(--text);line-height:1.45}
+.lik-btns{display:flex;gap:6px;flex-wrap:wrap}
+.lbtn{border:1px solid var(--borderf);border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer;background:var(--surf2);color:var(--muted);font-family:'Sora',sans-serif;transition:all .15s;white-space:nowrap}
+.lbtn:hover{border-color:var(--green);color:var(--green);background:var(--green-lt)}
+.lbtn.sel{background:var(--green-lt);border-color:var(--green);border-width:1.5px;color:var(--green-dk);font-weight:500}
+#submit-btn{width:100%;padding:14px;margin-top:16px;background:var(--green);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:'Sora',sans-serif;transition:all .15s;letter-spacing:.01em}
+#submit-btn:hover:not(:disabled){background:var(--green-dk);transform:translateY(-1px)}
+#submit-btn:disabled{background:var(--surf3);color:var(--hint);cursor:not-allowed}
+
+/* ── RESULTS ── */
+.res-hero{background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);border-radius:var(--r);padding:24px 20px;margin-bottom:12px;text-align:center}
+.res-emoji{font-size:32px;margin-bottom:10px}
+.res-hero h3{font-family:'Fraunces',serif;font-size:20px;color:var(--green-dk);margin-bottom:8px}
+.res-hero p{font-size:13px;color:var(--muted);line-height:1.65;max-width:400px;margin:0 auto}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--surf);border:.5px solid var(--border);border-radius:var(--rsm);padding:14px;text-align:center}
+.stat-val{font-size:18px;font-weight:600;color:var(--text)}
+.stat-sub{font-size:11px;color:var(--hint);margin-top:3px}
+.rec{background:var(--surf);border:.5px solid var(--border);border-left:3px solid var(--green);border-radius:var(--rsm);padding:14px 16px;margin-bottom:10px}
+.rec.warn{border-left-color:var(--amber);background:var(--amber-lt)}
+.rec.bad{border-left-color:var(--red);background:var(--red-lt)}
+.rec.contra{border-left-color:var(--purple);background:var(--purple-lt)}
+.rec h4{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.rec ul{margin:0 0 0 16px;padding:0;display:flex;flex-direction:column;gap:6px}
+.rec li{font-size:12.5px;color:var(--muted);line-height:1.6}
+.rec-summary{font-size:13px;color:var(--muted);line-height:1.65;margin:0 0 10px;padding:0}
+.sec-lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--hint);font-weight:500;margin:14px 0 8px}
+#restart-btn{width:100%;padding:12px;margin-top:16px;background:transparent;border:.5px solid var(--borderf);border-radius:var(--rsm);font-size:13px;cursor:pointer;font-family:'Sora',sans-serif;color:var(--muted);transition:background .15s}
+#restart-btn:hover{background:var(--surf2)}
+
+/* ── TRACKER / ALARM TAB ── */
+.tracker-page-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--text);margin:20px 0 4px}
+.tracker-page-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.habit-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:10px}
+.habit-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.habit-name{font-size:14px;font-weight:600;color:var(--text)}
+.habit-toggle{display:flex;align-items:center;gap:8px}
+.toggle-track{position:relative;width:40px;height:22px;background:var(--surf3);border-radius:11px;cursor:pointer;transition:background .2s;border:.5px solid var(--border)}
+.toggle-track.on{background:var(--green)}
+.toggle-knob{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+.toggle-track.on .toggle-knob{transform:translateX(18px)}
+.alarm-section{margin-top:12px;display:none}
+.alarm-section.visible{display:block}
+.alarm-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+.time-field{flex:1;min-width:120px}
+.time-field label{font-size:10px;color:var(--hint);font-weight:500;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px}
+.time-field input[type=time]{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:13px;color:var(--text);background:var(--surf2);outline:none;cursor:pointer}
+.time-field input[type=time]:focus{border-color:var(--green)}
+.sound-row{margin-bottom:10px}
+.sound-label{font-size:10px;color:var(--hint);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.sound-opts{display:flex;flex-wrap:wrap;gap:6px}
+.sound-btn{padding:6px 12px;border:1px solid var(--borderf);border-radius:20px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;background:var(--surf2);color:var(--muted);transition:all .15s}
+.sound-btn:hover{border-color:var(--green);color:var(--green)}
+.sound-btn.sel{background:var(--green-lt);border-color:var(--green);color:var(--green-dk);font-weight:500}
+.upload-sound-btn{padding:6px 12px;border:1px dashed var(--borderf);border-radius:20px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all .15s}
+.upload-sound-btn:hover{border-color:var(--green);color:var(--green)}
+.set-alarm-btn{width:100%;padding:10px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.3);border-radius:var(--rsm);font-size:13px;font-weight:500;color:var(--green-dk);cursor:pointer;font-family:'Sora',sans-serif;transition:all .2s;margin-top:4px}
+.set-alarm-btn:hover{background:var(--green);color:#fff}
+.alarm-active-badge{display:inline-flex;align-items:center;gap:5px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.3);border-radius:12px;padding:4px 10px;font-size:11px;color:var(--green-dk);font-weight:500;margin-top:8px}
+.alarm-active-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── LOG ENTRY ── */
+.log-entry-section{margin-top:16px;padding-top:16px;border-top:.5px solid var(--border)}
+.log-entry-title{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.log-duration-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.log-note{width:100%;margin-top:8px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:13px;color:var(--text);background:var(--surf2);outline:none;resize:none}
+.log-note:focus{border-color:var(--green)}
+.log-btn{padding:9px 18px;background:var(--green);border:none;border-radius:var(--rsm);font-size:13px;font-weight:500;color:#fff;cursor:pointer;font-family:'Sora',sans-serif;transition:all .15s}
+.log-btn:hover{background:var(--green-dk)}
+
+/* ── CALENDAR TAB ── */
+.calendar-wrap{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cal-nav{background:none;border:1px solid var(--border);border-radius:var(--rsm);width:32px;height:32px;cursor:pointer;font-size:14px;color:var(--muted);transition:all .2s}
+.cal-nav:hover{border-color:var(--green);color:var(--green)}
+.cal-month{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--text)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-day-name{text-align:center;font-size:10px;font-weight:500;color:var(--hint);padding:6px 0;text-transform:uppercase}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:12px;color:var(--muted);position:relative;transition:background .15s}
+.cal-day:hover{background:var(--surf2)}
+.cal-day.today{font-weight:600;color:var(--green-dk);background:var(--green-lt)}
+.cal-day.has-log{color:var(--text)}
+.cal-day.has-log::after{content:'';position:absolute;bottom:4px;width:4px;height:4px;border-radius:50%;background:var(--green)}
+.cal-day.other-month{opacity:.3}
+.cal-day.selected{background:var(--green);color:#fff;font-weight:600}
+.cal-day.selected::after{background:#fff}
+.upload-cal-btn{width:100%;padding:11px;border:1.5px dashed var(--borderf);border-radius:var(--rsm);font-size:13px;cursor:pointer;background:transparent;color:var(--muted);font-family:'Sora',sans-serif;transition:all .2s;margin-bottom:12px}
+.upload-cal-btn:hover{border-color:var(--green);color:var(--green)}
+.day-log-panel{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;min-height:60px}
+.day-log-title{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:10px}
+.log-entry-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:.5px solid var(--border)}
+.log-entry-item:last-child{border-bottom:none}
+.log-entry-icon{width:32px;height:32px;border-radius:8px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.log-entry-meta{flex:1}
+.log-entry-habit{font-size:13px;font-weight:500;color:var(--text)}
+.log-entry-dur{font-size:12px;color:var(--muted)}
+.log-entry-note{font-size:11px;color:var(--hint);margin-top:2px;font-style:italic}
+
+/* ── CHARTS TAB ── */
+.chart-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:12px}
+.chart-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.chart-sub{font-size:11px;color:var(--hint);margin-bottom:14px}
+.trend-badge{display:inline-flex;align-items:center;gap:5px;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;margin-top:10px}
+.trend-badge.up{background:var(--green-lt);color:var(--green-dk)}
+.trend-badge.down{background:var(--red-lt);color:var(--red)}
+.trend-badge.neutral{background:var(--surf2);color:var(--muted)}
+.chart-rec{background:var(--surf2);border-radius:var(--rsm);padding:10px 12px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}
+.chart-rec strong{color:var(--text)}
+.export-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.export-btn{display:flex;align-items:center;gap:7px;padding:10px 16px;border:1px solid var(--border);border-radius:var(--rsm);font-size:13px;cursor:pointer;background:var(--surf);color:var(--text);font-family:'Sora',sans-serif;font-weight:500;transition:all .2s}
+.export-btn:hover{border-color:var(--green);color:var(--green)}
+.no-data-msg{text-align:center;padding:40px 20px;color:var(--hint);font-size:13px}
+.no-data-icon{font-size:32px;margin-bottom:10px}
+
+/* ── Combined trend chart: legend chips ── */
+.trend-legend-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.trend-legend-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;background:rgba(0,0,0,0.04);color:var(--text);border:1.5px solid var(--chip-color,#1D9E75)}
+.trend-legend-chip::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--chip-color,#1D9E75);flex-shrink:0}
+
+/* ── Combined trend chart: per-activity summary badges ── */
+.trend-acts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.trend-act-badge{background:var(--surf2);border-radius:var(--rsm);padding:8px 10px 8px 12px;display:flex;flex-direction:column;gap:2px}
+.trend-act-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trend-act-arrow{font-size:11px;font-weight:700}
+.trend-act-arrow.up{color:var(--green-dk)}
+.trend-act-arrow.down{color:var(--red)}
+.trend-act-arrow.neutral{color:var(--muted)}
+.trend-act-avg{font-size:10px;color:var(--hint);margin-top:1px}
+
+/* ── ALARM MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:#fff;border-radius:20px;padding:24px;max-width:380px;width:100%;animation:cardUp .3s both;text-align:center}
+.modal-icon{font-size:48px;margin-bottom:12px}
+.modal-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.modal-btns{display:flex;gap:10px}
+.modal-btn{flex:1;padding:12px;border:none;border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s}
+.modal-btn.primary{background:var(--green);color:#fff}
+.modal-btn.primary:hover{background:var(--green-dk)}
+.modal-btn.secondary{background:var(--surf2);color:var(--muted)}
+.modal-btn.secondary:hover{background:var(--surf3)}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surf3);border-radius:2px}
+/* ── Single recommendations box ── */
+.rec-box{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.rec-row{display:flex;align-items:flex-start;gap:10px;padding:12px 14px}
+.rec-row-border{border-bottom:.5px solid var(--border)}
+.rec-icon{font-size:14px;flex-shrink:0;margin-top:1px;line-height:1}
+.rec-row-body{flex:1;min-width:0}
+.rec-row-title{font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:3px;line-height:1.4}
+.rec-row-text{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* ── Habit card new layout ── */
+.habit-icon-btn{width:40px;height:40px;border-radius:12px;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:transform .15s;flex-shrink:0}
+.habit-icon-btn:hover{transform:scale(1.08)}
+.habit-card-actions{display:flex;align-items:center;gap:6px}
+.icon-action-btn{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surf2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.icon-action-btn:hover{background:var(--surf);border-color:var(--green)}
+.icon-action-btn.alarm-on{border-color:var(--amber);background:var(--amber-lt);animation:bell-pulse 2s infinite}
+@keyframes bell-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.alarm-mini-badge{font-size:10.5px;color:var(--green);margin-top:2px;font-weight:500}
+.alarm-mini-badge.muted{color:var(--hint)}
+
+/* ── Alarm / Log panels ── */
+.alarm-panel,.log-panel{border-top:1px solid var(--border);margin-top:12px;padding-top:12px;animation:slideDown .18s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.panel-section-lbl{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.alarm-ampm-row,.log-ampm-row{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
+.ampm-arrow{font-size:16px;color:var(--hint);padding-bottom:8px;align-self:flex-end}
+
+/* ── AM/PM picker ── */
+.ampm-field{display:flex;flex-direction:column;gap:4px}
+.ampm-field label{font-size:11px;color:var(--hint);font-weight:500}
+.ampm-wrap{display:flex;align-items:center;gap:4px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);padding:6px 8px}
+.ampm-hour,.ampm-min{border:none;background:transparent;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;color:var(--text);text-align:center;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;-moz-appearance:none;padding:0 2px}
+.ampm-hour{width:34px}
+.ampm-min{width:36px}
+.ampm-sep{font-size:14px;font-weight:700;color:var(--text)}
+.ampm-toggle{display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin-left:4px}
+.ampm-btn{padding:3px 7px;font-size:11px;font-weight:600;border:none;background:transparent;color:var(--hint);cursor:pointer;font-family:'Sora',sans-serif;transition:background .12s,color .12s}
+.ampm-btn.sel{background:var(--green);color:#fff}
+
+/* ── Duration diff display ── */
+.diff-display{font-size:12.5px;font-weight:600;color:var(--green);min-height:18px;margin:8px 0 4px;letter-spacing:.01em}
+.dur-manual-row{display:flex;gap:8px;margin-top:6px}
+.dur-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:13px;outline:none;background:var(--surf2);color:var(--text)}
+
+/* ── FLOATING ADD BUTTON ── */
+.fab-add{position:fixed;bottom:28px;right:22px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#1D9E75);border:none;color:#fff;font-size:26px;line-height:1;cursor:pointer;z-index:100;box-shadow:0 4px 20px rgba(29,158,117,0.45);transition:all .2s;display:flex;align-items:center;justify-content:center}
+.fab-add:hover{transform:scale(1.1) translateY(-2px);box-shadow:0 8px 28px rgba(29,158,117,0.5)}
+.fab-add:active{transform:scale(.96)}
+
+/* ── ADD ALARM MODAL ── */
+.add-alarm-box{max-width:420px;width:100%;max-height:90vh;overflow-y:auto;text-align:left;padding:0}
+.add-alarm-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:.5px solid var(--border);position:sticky;top:0;background:#fff;z-index:2;border-radius:20px 20px 0 0}
+.add-alarm-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--text)}
+.add-alarm-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--hint);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.add-alarm-close:hover{background:var(--surf2)}
+.add-alarm-section{padding:14px 20px;border-bottom:.5px solid var(--border)}
+.add-alarm-section:last-of-type{border-bottom:none}
+.add-alarm-section-lbl{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.add-alarm-row{display:flex;align-items:flex-end;gap:10px}
+.aa-duration-display{margin-top:10px;font-size:13px;font-weight:600;color:var(--green);min-height:20px;padding:6px 12px;background:var(--green-lt);border-radius:var(--rsm);border:1px solid rgba(29,158,117,0.2)}
+.aa-categories{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.aa-cat-btn{padding:7px 13px;border:1px solid var(--borderf);border-radius:20px;font-size:12.5px;font-family:'Sora',sans-serif;cursor:pointer;background:var(--surf2);color:var(--muted);transition:all .15s}
+.aa-cat-btn:hover{border-color:var(--green);color:var(--green-dk);background:var(--green-lt)}
+.aa-cat-btn.sel{background:var(--green-lt);border-color:var(--green);border-width:1.5px;color:var(--green-dk);font-weight:600}
+.aa-custom-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:13px;color:var(--text);background:var(--surf2);outline:none;transition:border-color .2s}
+.aa-custom-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,0.1)}
+.aa-custom-input::placeholder{color:var(--hint)}
+.add-alarm-section .auth-btn{margin:0 20px 16px;width:calc(100% - 40px)}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE STYLES - All Devices
+   ═══════════════════════════════════════════════════════ */
+
+/* Base responsive adjustments */
+@media screen and (max-width: 480px) {
+  :root {
+    --r: 12px;
+    --rsm: 6px;
+    --rxl: 18px;
+  }
+  
+  body {
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Auth screen */
+  #auth-screen {
+    padding: 16px;
+  }
+  
+  .auth-card {
+    max-width: 100%;
+    border-radius: 16px;
+  }
+  
+  .auth-top {
+    padding: 24px 20px 22px;
+  }
+  
+  .auth-top-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+  
+  .auth-top h1 {
+    font-size: 18px;
+  }
+  
+  .auth-body {
+    padding: 20px 18px 22px;
+  }
+  
+  .field {
+    margin-bottom: 14px;
+  }
+  
+  .field input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  .auth-btn {
+    padding: 11px;
+    font-size: 13px;
+  }
+  
+  /* App header - no wrap, keep on one line */
+  .app-header {
+    padding: 10px 14px;
+    flex-wrap: nowrap;
+  }
+  
+  .app-logo-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  
+  .app-logo span {
+    font-size: 14px;
+  }
+  
+  .user-pill {
+    padding: 5px 9px 5px 6px;
+    gap: 6px;
+  }
+  
+  .user-pill-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Settings modal mobile */
+  .settings-box {
+    max-height: 95vh;
+  }
+  
+  .settings-avatar-row {
+    padding: 16px 16px 14px;
+  }
+  
+  .settings-fields {
+    padding: 14px 16px 4px;
+    gap: 12px;
+  }
+  
+  .settings-actions {
+    padding: 12px 16px 4px;
+  }
+  
+  .settings-signout {
+    padding: 10px 16px 16px;
   }
 
-  Chart.prototype.destroy = function() {
-    if (this._resizeObs) this._resizeObs.disconnect();
-    if (this._mouseMove) this.canvas.removeEventListener('mousemove', this._mouseMove);
-    if (this._mouseLeave) this.canvas.removeEventListener('mouseleave', this._mouseLeave);
-    instances.delete(this.canvas);
-    const ctx = this.canvas.getContext('2d');
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-  };
-
-  Chart.prototype._resize = function() {
-    const parent = this.canvas.parentElement;
-    if (!parent) return;
-    const dpr = window.devicePixelRatio || 1;
-    const w = parent.clientWidth || 300;
-    const h = parent.clientHeight || 200;
-    this.canvas.width  = w * dpr;
-    this.canvas.height = h * dpr;
-    this.canvas.style.width  = w + 'px';
-    this.canvas.style.height = h + 'px';
-    this._dpr = dpr;
-    this._w = w;
-    this._h = h;
-  };
-
-  Chart.prototype._bindEvents = function() {
-    const self = this;
-    this._mouseMove = function(e) {
-      const rect = self.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      self._hoverX = x;
-      self._draw();
-    };
-    this._mouseLeave = function() {
-      self._hoverX = null;
-      self._draw();
-    };
-    this.canvas.addEventListener('mousemove', this._mouseMove);
-    this.canvas.addEventListener('mouseleave', this._mouseLeave);
-
-    if (typeof ResizeObserver !== 'undefined') {
-      this._resizeObs = new ResizeObserver(function() {
-        self._resize();
-        self._draw();
-      });
-      if (this.canvas.parentElement) this._resizeObs.observe(this.canvas.parentElement);
-    }
-  };
-
-  Chart.prototype._draw = function() {
-    const canvas = this.canvas;
-    const ctx = canvas.getContext('2d');
-    const dpr = this._dpr || 1;
-    const W = this._w || canvas.width;
-    const H = this._h || canvas.height;
-    const opts = this.config.options || {};
-    const data = this.config.data || {};
-    const datasets = (data.datasets || []).filter(ds => ds.data && ds.data.length);
-    const labels = data.labels || [];
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, W, H);
-
-    // Layout
-    const PAD_TOP = 16, PAD_RIGHT = 16, PAD_BOTTOM = 44, PAD_LEFT = 44;
-    const plotX = PAD_LEFT, plotY = PAD_TOP;
-    const plotW = W - PAD_LEFT - PAD_RIGHT;
-    const plotH = H - PAD_TOP - PAD_BOTTOM;
-
-    if (!datasets.length || !labels.length) {
-      ctx.fillStyle = '#a09c96';
-      ctx.font = '13px Sora,sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('No data yet', W / 2, H / 2);
-      ctx.restore();
-      return;
-    }
-
-    // Collect all numeric values
-    const allVals = [];
-    datasets.forEach(ds => ds.data.forEach(v => { if (v !== null && v !== undefined) allVals.push(+v); }));
-    const scaleOpts = (opts.scales && opts.scales.y) || {};
-    const rawMin = scaleOpts.min !== undefined ? scaleOpts.min : Math.min(0, ...allVals);
-    const rawMax = scaleOpts.max !== undefined ? scaleOpts.max : Math.max(...allVals) * 1.1 || 1;
-    const yMin = rawMin, yMax = rawMax;
-
-    function toX(i) { return plotX + (i / Math.max(labels.length - 1, 1)) * plotW; }
-    function toY(v) { return plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
-
-    // Grid lines
-    const maxTicks = (scaleOpts.ticks && scaleOpts.ticks.maxTicksLimit) || 6;
-    const tickStep = (scaleOpts.ticks && scaleOpts.ticks.stepSize) ? scaleOpts.ticks.stepSize : (yMax - yMin) / (maxTicks - 1);
-    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
-    ctx.lineWidth = 1;
-    for (let v = yMin; v <= yMax + 0.001; v += tickStep) {
-      const y = toY(v);
-      ctx.beginPath(); ctx.moveTo(plotX, y); ctx.lineTo(plotX + plotW, y); ctx.stroke();
-      // Y tick label
-      const tickCb = scaleOpts.ticks && scaleOpts.ticks.callback;
-      const label = tickCb ? tickCb(+v.toFixed(2)) : +v.toFixed(1);
-      ctx.fillStyle = '#a09c96';
-      ctx.font = '10px Sora,sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(label, plotX - 4, y + 4);
-    }
-
-    // X axis labels
-    const maxXLabels = Math.floor(plotW / 48);
-    const xStep = Math.max(1, Math.ceil(labels.length / maxXLabels));
-    ctx.fillStyle = '#a09c96';
-    ctx.font = '10px Sora,sans-serif';
-    ctx.textAlign = 'center';
-    labels.forEach((lbl, i) => {
-      if (i % xStep !== 0 && i !== labels.length - 1) return;
-      ctx.fillText(lbl, toX(i), plotY + plotH + 16);
-    });
-
-    // Datasets
-    datasets.forEach(ds => {
-      const color = ds.borderColor || '#1D9E75';
-      const tension = ds.tension || 0;
-      const pts = ds.data.map((v, i) => v !== null && v !== undefined ? { x: toX(i), y: toY(+v), v: +v } : null);
-
-      // Fill
-      if (ds.fill) {
-        ctx.beginPath();
-        let started = false;
-        pts.forEach((p, i) => {
-          if (!p) return;
-          if (!started) { ctx.moveTo(p.x, p.y); started = true; } else { ctx.lineTo(p.x, p.y); }
-        });
-        ctx.lineTo(toX(pts.length - 1), toY(yMin));
-        ctx.lineTo(toX(0), toY(yMin));
-        ctx.closePath();
-        ctx.fillStyle = ds.backgroundColor || color + '22';
-        ctx.fill();
-      }
-
-      // Line
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      let lineStarted = false;
-      pts.forEach((p, i) => {
-        if (!p) { lineStarted = false; return; }
-        if (!lineStarted) { ctx.moveTo(p.x, p.y); lineStarted = true; } else { ctx.lineTo(p.x, p.y); }
-      });
-      ctx.stroke();
-
-      // Points
-      const pr = ds.pointRadius !== undefined ? ds.pointRadius : 4;
-      pts.forEach(p => {
-        if (!p) return;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, pr, 0, Math.PI * 2);
-        ctx.fillStyle = ds.pointBackgroundColor || color;
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      });
-    });
-
-    // Hover tooltip
-    const hx = this._hoverX;
-    if (hx !== null && hx !== undefined) {
-      // Find nearest X index
-      const idx = Math.round((hx - plotX) / plotW * (labels.length - 1));
-      if (idx >= 0 && idx < labels.length) {
-        const tx = toX(idx);
-        // Vertical line
-        ctx.save();
-        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 3]);
-        ctx.beginPath(); ctx.moveTo(tx, plotY); ctx.lineTo(tx, plotY + plotH); ctx.stroke();
-        ctx.restore();
-
-        // Tooltip box
-        const tooltipLines = [];
-        const ttOpts = opts.plugins && opts.plugins.tooltip;
-        datasets.forEach(ds => {
-          const v = ds.data[idx];
-          if (v === null || v === undefined) return;
-          let lbl = ` ${ds.label}: ${v}`;
-          if (ttOpts && ttOpts.callbacks && ttOpts.callbacks.label) {
-            const fake = { parsed: { y: v }, dataset: ds };
-            const res = ttOpts.callbacks.label(fake);
-            if (res !== null && res !== undefined) lbl = res;
-          }
-          tooltipLines.push({ text: lbl, color: ds.borderColor || '#1D9E75' });
-        });
-
-        if (tooltipLines.length) {
-          const padding = 8;
-          const lineH = 18;
-          const boxW = Math.max(...tooltipLines.map(l => l.text.length * 7)) + padding * 2 + 12;
-          const boxH = (tooltipLines.length + 1) * lineH + padding * 2;
-          let bx = tx + 10;
-          let by = plotY + 10;
-          if (bx + boxW > W - 4) bx = tx - boxW - 10;
-          if (by + boxH > H - 4) by = H - boxH - 4;
-
-          ctx.save();
-          ctx.shadowColor = 'rgba(0,0,0,0.12)';
-          ctx.shadowBlur = 8;
-          ctx.fillStyle = '#fff';
-          ctx.beginPath();
-          ctx.roundRect(bx, by, boxW, boxH, 6);
-          ctx.fill();
-          ctx.restore();
-
-          ctx.fillStyle = '#6b6660';
-          ctx.font = '600 11px Sora,sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText(labels[idx], bx + padding, by + padding + lineH - 4);
-
-          tooltipLines.forEach((line, li) => {
-            const ty = by + padding + (li + 2) * lineH - 4;
-            ctx.fillStyle = line.color;
-            ctx.beginPath(); ctx.arc(bx + padding + 4, ty - 5, 4, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#1a1816';
-            ctx.font = '12px Sora,sans-serif';
-            ctx.fillText(line.text, bx + padding + 12, ty);
-          });
-        }
-      }
-    }
-
-    ctx.restore();
-  };
-
-  global.Chart = Chart;
-}(window));
-</script>
-<link rel="stylesheet" href="spttool.css">
-</head>
-<body>
-
-<!-- ══════════════════ AUTH ══════════════════ -->
-<div id="auth-screen" class="screen active">
-  <div class="auth-card">
-    <div class="auth-top">
-      <div class="auth-top-icon">SPT</div>
-      <h1>Quick Tracker</h1>
-      <p>Personalised wellness check-ins, just for you</p>
-    </div>
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
-      <button class="auth-tab" onclick="switchTab('signup')">Create account</button>
-    </div>
-    <div class="auth-body">
-      <div id="tab-login">
-        <form action="javascript:void(0)" onsubmit="doLogin()" autocomplete="on">
-          <div class="field"><label>Username</label><input id="li-user" type="text" placeholder="Enter your username" autocomplete="username"></div>
-          <div class="field"><label>Password</label><div class="pw-wrap"><input id="li-pass" type="password" placeholder="Enter your password" autocomplete="current-password"><button type="button" class="pw-toggle" onclick="togglePw('li-pass',this)" tabindex="-1">👁</button></div></div>
-          <button type="submit" class="auth-btn">Sign in →</button>
-        </form>
-        <div id="li-msg" class="auth-msg"></div>
-      </div>
-      <div id="tab-signup" style="display:none">
-        <form action="javascript:void(0)" onsubmit="doSignup()" autocomplete="on">
-          <div class="field"><label>Full name</label><input id="su-name" type="text" placeholder="e.g. Tshering Wangmo" autocomplete="name"></div>
-          <div class="field"><label>Choose a username</label><input id="su-user" type="text" placeholder="e.g. tshering99" autocomplete="username"></div>
-          <div class="field"><label>Create password</label><div class="pw-wrap"><input id="su-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('su-pass',this)" tabindex="-1">👁</button></div></div>
-          <button type="submit" class="auth-btn">Create account →</button>
-        </form>
-        <div id="su-msg" class="auth-msg"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════ APP ══════════════════ -->
-<div id="app-screen" class="screen">
-  <div class="app-header">
-    <div class="app-logo">
-      <div class="app-logo-icon">SPT</div>
-      <span>Quick Tracker</span>
-    </div>
-    <div class="user-pill" onclick="doLogout()">
-      <div class="user-avatar" id="hdr-avatar"></div>
-      <span class="user-pill-name" id="hdr-name"></span>
-      <span class="logout-btn">· Sign out</span>
-    </div>
-  </div>
-
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showTab('check-in')">Check-In</button>
-    <button class="nav-tab" onclick="showTab('tracker')">📋 Tracker</button>
-    <button class="nav-tab" onclick="showTab('history')">📅 History</button>
-    <button class="nav-tab" onclick="showTab('trends')">📈 Trends</button>
-  </div>
-
-  <!-- ── CHECK-IN TAB ── -->
-  <div id="tab-check-in" class="tab-pane active">
-    <div class="hero">
-      <div class="hero-icon">SPT</div>
-      <h2>Hello, <span id="greeting-name"></span> 👋</h2>
-      <p>What’s your day ? Get simple, gentle guidance made for you.</p>
-      <div class="prog-wrap">
-        <div class="prog-meta"><span>Your progress</span><span id="prog-txt">0 of 12</span></div>
-        <div class="prog-bar"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
-      </div>
-    </div>
-
-    <form id="tracker-form" onsubmit="return false">
-      <div class="sec-hdr"><div class="sec-pill a"><div class="sec-dot"><span>A</span></div> About you</div><div class="sec-line"></div></div>
-
-      <div class="q-card">
-        <div class="q-num">Question 1</div><p class="q-title">How old are you?</p>
-        <div class="opts" data-q="age">
-          <button type="button" class="opt" data-v="Under 18"><span class="opt-em"></span> Under 18</button>
-          <button type="button" class="opt" data-v="18–25"><span class="opt-em"></span> 18 – 25</button>
-          <button type="button" class="opt" data-v="26–35"><span class="opt-em"></span> 26 – 35</button>
-          <button type="button" class="opt" data-v="36–50"><span class="opt-em"></span> 36 – 50</button>
-          <button type="button" class="opt" data-v="50+"><span class="opt-em"></span> Over 50</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 2</div><p class="q-title">Where do you live?</p>
-        <div class="opts" data-q="location">
-          <button type="button" class="opt" data-v="Urban"><span class="opt-em"></span> City</button>
-          <button type="button" class="opt" data-v="Semi-urban"><span class="opt-em"></span> Remote</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 3</div><p class="q-title">What kind of work do you do most of the time?</p>
-        <div class="opts" data-q="worktype">
-          <button type="button" class="opt" data-v="Sitting"><span class="opt-em"></span> Mental </button>
-          <button type="button" class="opt" data-v="Physical"><span class="opt-em"></span> Physical</button>
-          <button type="button" class="opt" data-v="Both"><span class="opt-em"></span> Both </button>
-        </div>
-      </div>
-
-      <div class="sec-hdr"><div class="sec-pill b"><div class="sec-dot"><span>B</span></div> Daily habits</div><div class="sec-line"></div></div>
-
-      <div class="q-card">
-        <div class="q-num">Question 4</div><p class="q-title">How many hours do you work on a normal day?</p>
-        <div class="opts" data-q="workhours">
-          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
-          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
-          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
-          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em"></span> 9+ hrs</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 5</div><p class="q-title">How many hours do you sleep most nights?</p>
-        <div class="opts" data-q="sleep">
-          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
-          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
-          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
-          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em"></span> 9+ hrs</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 6</div><p class="q-title">How long do you use your phone before going to sleep?</p>
-        <div class="opts" data-q="phonetime">
-          <button type="button" class="opt" data-v="no phone before bed"><span class="opt-em"></span> No phone</button>
-          <!-- <button type="button" class="opt" data-v="less than 30 minutes"><span class="opt-em"></span> Under 30 min</button> -->
-          <button type="button" class="opt" data-v="30 min–1 hour"><span class="opt-em"></span> 30 min – 1 hr</button>
-          <button type="button" class="opt" data-v="1–2 hours"><span class="opt-em"></span> 1–2 hrs</button>
-          <button type="button" class="opt" data-v="2–3 hours"><span class="opt-em"></span> 2–3 hrs</button>
-          <button type="button" class="opt" data-v="more than 3 hours"><span class="opt-em"></span> 3+ hrs</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 7</div><p class="q-title">What time do you usually go to sleep?</p>
-        <div class="opts" data-q="bedtime">
-          <!-- <button type="button" class="opt" data-v="before 9 PM"><span class="opt-em"></span> Before 9 pm</button> -->
-          <button type="button" class="opt" data-v="9–10 PM"><span class="opt-em"></span> 9–10 pm</button>
-          <button type="button" class="opt" data-v="10–11 PM"><span class="opt-em"></span> 10–11 pm</button>
-          <button type="button" class="opt" data-v="11 PM–12 AM"><span class="opt-em"></span> 11 pm–midnight</button>
-          <button type="button" class="opt" data-v="after 12 AM"><span class="opt-em"></span> After midnight</button>
-        </div>
-      </div>
-
-      <div class="sec-hdr"><div class="sec-pill c"><div class="sec-dot"><span>C</span></div> How you feel</div><div class="sec-line"></div></div>
-
-      <div class="q-card">
-        <div class="q-num">Questions 8 – 12</div>
-        <p class="q-title" style="margin-bottom:16px">Do you agree with each of these?</p>
-        <div class="lik-row" id="lik-container"></div>
-      </div>
-
-      <button type="button" id="submit-btn" disabled onclick="showResults()">See my results →</button>
-    </form>
-
-    <div id="results"></div>
-  </div>
-
-  <!-- ── TRACKER TAB ── -->
-  <div id="tab-tracker" class="tab-pane">
-    <!-- Schedule list (shown when schedules exist) -->
-    <div id="tracker-schedules-wrap" style="display:none">
-      <div class="tracker-list-header">
-        <div>
-          <p class="tracker-page-title" style="margin:0">My Schedules</p>
-          <p class="tracker-page-sub" style="margin:4px 0 0">Your planned activities — tap Edit to update</p>
-        </div>
-        <button class="tracker-add-btn" onclick="openScheduleModal()" title="Add new schedule">＋</button>
-      </div>
-
-       <!-- ── STOPWATCH ── -->
-    <div class="tool-card" style="margin-top:16px">
-      <div class="tool-card-title">⏱ Stopwatch</div>
-      <p class="tool-card-sub">Track how long an activity takes.</p>
-
-      <div class="sw-display" id="sw-display">00:00:00</div>
-
-      <div class="sw-btns">
-        <button class="sw-btn start" id="sw-start-btn" onclick="swStartStop()">▶ Start</button>
-        <button class="sw-btn stop" id="sw-stop-btn" onclick="swStop()" disabled>⏹ Stop</button>
-        <button class="sw-btn reset" id="sw-reset-btn" onclick="swReset()" disabled>↺ Reset</button>
-      </div>
-     <div id="sw-stop" style="margin-top:10px"></div>
-    </div>
-
-      <!-- Log to habit after stopping -->
-      <div id="sw-log-section" style="display:none;margin-top:14px">
-        <div class="add-alarm-section-lbl" style="margin-bottom:8px">📝 Log this time to a habit?</div>
-        <div class="aa-categories" id="sw-categories">
-          <button type="button" class="aa-cat-btn" data-cat="Work" onclick="swSelectCat(this)">💻 Work</button>
-          <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="swSelectCat(this)">📚 Studies</button>
-          <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="swSelectCat(this)">🏃 Exercise</button>
-          <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="swSelectCat(this)">🧘 Meditation</button>
-          <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="swSelectCat(this)">📖 Reading</button>
-          <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="swSelectCat(this)">✍ Other</button> -->
-        </div>
-        <button class="log-btn" style="margin-top:10px;width:100%" onclick="swLogTime()">💾 Save to History</button>
-        <div id="sw-log-msg" class="auth-msg" style="margin-top:6px"></div>
-      </div>
-    </div>  
-
-      <div id="tracker-schedule-list"></div>
-    
-    <!-- Empty state with centered + button -->
-    <div class="tracker-empty-state" id="tracker-empty-state">
-      <div class="tracker-empty-icon">📋</div>
-      <h3 class="tracker-empty-title">No schedules yet</h3>
-      <p class="tracker-empty-sub">Tap the button below to add your first scheduled activity</p>
-      <button class="tracker-fab-center" onclick="openScheduleModal()" title="Add Schedule">
-        <span class="tracker-fab-plus">＋</span>
-        <span class="tracker-fab-label">Add Schedule</span>
-      </button>
-    </div>  
-  </div>
-
-  <!-- ── HISTORY TAB ── -->
-  <div id="tab-history" class="tab-pane">
-    <p class="tracker-page-title">History & Planning</p>
-    <!-- <p class="tracker-page-sub">Tap any day to see logs — or plan ahead by tapping a future date.</p> -->
-
-    <!-- History list -->
-    <div style="margin-top:20px">
-      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:10px">All Logs</div>
-      <div id="history-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
-      <div id="history-content"></div>
-    </div>
-  </div>
-
-  <!-- ── TRENDS TAB ── -->
-  <div id="tab-trends" class="tab-pane">
-    <p class="tracker-page-title">Trends & Insights</p>
-    <p class="tracker-page-sub">Based on your habit log history.</p>
-    <div class="export-row">
-      <button class="export-btn" onclick="exportExcel()">📊 Export to Excel</button>
-      <button class="export-btn" onclick="exportCSV()">📄 Export CSV</button>
-    </div>
-    <div id="trends-content"></div>
-  </div>
-
+  .user-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
   
-<!-- ── FLOATING + BUTTON (hidden on tracker, shown elsewhere) ── -->
-<!-- <button id="fab-add" class="fab-add" onclick="openAddAlarmModal()" title="Set a new alarm">＋</button> -->
+  .user-pill-name {
+    font-size: 11px;
+  }
+  
+  /* Navigation tabs */
+  .nav-tabs {
+    padding: 0 12px;
+    gap: 2px;
+    top: 56px;
+  }
+  
+  .nav-tab {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  
+  /* Tab content */
+  .tab-pane {
+    padding: 0 12px 70px;
+  }
+  
+  /* Hero section */
+  .hero {
+    padding: 20px 12px 16px;
+  }
+  
+  .hero-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 22px;
+  }
+  
+  .hero h2 {
+    font-size: 20px;
+  }
+  
+  .hero p {
+    font-size: 12px;
+    max-width: 100%;
+  }
+  
+  /* Section headers */
+  .sec-hdr {
+    margin: 20px 0 10px;
+    gap: 10px;
+  }
+  
+  .sec-pill {
+    padding: 4px 12px 4px 6px;
+    font-size: 10px;
+  }
+  
+  .sec-dot {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .sec-dot span {
+    font-size: 8px;
+  }
+  
+  /* Question cards */
+  .q-card {
+    padding: 14px 16px;
+    margin-bottom: 8px;
+  }
+  
+  .q-num {
+    font-size: 9px;
+  }
+  
+  .q-title {
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  
+  .opts {
+    gap: 6px;
+  }
+  
+  .opt {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+  
+  .opt-em {
+    font-size: 13px;
+  }
+  
+  /* Likert scale */
+  .lik-row {
+    gap: 12px;
+  }
+  
+  .lik-item {
+    padding-bottom: 12px;
+  }
+  
+  .lik-label {
+    font-size: 12px;
+  }
+  
+  .lik-btns {
+    gap: 5px;
+  }
+  
+  .lbtn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  
+  /* Submit button */
+  #submit-btn {
+    padding: 12px;
+    font-size: 13px;
+    margin-top: 14px;
+  }
+  
+  /* Results */
+  .res-hero {
+    padding: 18px 14px;
+  }
+  
+  .res-emoji {
+    font-size: 28px;
+  }
+  
+  .res-hero h3 {
+    font-size: 18px;
+  }
+  
+  .res-hero p {
+    font-size: 12px;
+  }
+  
+  .stat-grid {
+    gap: 6px;
+  }
+  
+  .stat {
+    padding: 12px 10px;
+  }
+  
+  .stat-val {
+    font-size: 16px;
+  }
+  
+  .stat-sub {
+    font-size: 10px;
+  }
+  
+  .rec {
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  
+  .rec h4 {
+    font-size: 12px;
+  }
+  
+  .rec li {
+    font-size: 12px;
+  }
+  
+  .sec-lbl {
+    font-size: 9px;
+    margin: 12px 0 6px;
+  }
+  
+  #restart-btn {
+    padding: 10px;
+    font-size: 12px;
+  }
+  
+  /* Tracker / Alarm */
+  .tracker-page-title {
+    font-size: 18px;
+    margin: 16px 0 4px;
+  }
+  
+  .tracker-page-sub {
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .habit-card {
+    padding: 14px 16px;
+    margin-bottom: 8px;
+  }
+  
+  .habit-card-head {
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .habit-name {
+    font-size: 13px;
+  }
+  
+  .habit-icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  
+  .icon-action-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+  
+  .alarm-row {
+    gap: 8px;
+  }
+  
+  .time-field {
+    min-width: 100px;
+  }
+  
+  .time-field input[type="time"] {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  
+  .sound-opts {
+    gap: 5px;
+  }
+  
+  .sound-btn,
+  .upload-sound-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  
+  .set-alarm-btn {
+    padding: 9px;
+    font-size: 12px;
+  }
+  
+  /* Log entry */
+  .log-entry-section {
+    margin-top: 14px;
+    padding-top: 14px;
+  }
+  
+  .log-entry-title {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  
+  .log-note {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  
+  .log-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  
+  /* Calendar */
+  .calendar-wrap {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .cal-header {
+    margin-bottom: 12px;
+  }
+  
+  .cal-nav {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .cal-month {
+    font-size: 14px;
+  }
+  
+  .cal-day-name {
+    font-size: 9px;
+    padding: 4px 0;
+  }
+  
+  .cal-day {
+    font-size: 11px;
+  }
+  
+  .day-log-panel {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .day-log-title {
+    font-size: 11px;
+  }
+  
+  .log-entry-item {
+    padding: 8px 0;
+    gap: 10px;
+  }
+  
+  .log-entry-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .log-entry-habit {
+    font-size: 12px;
+  }
+  
+  .log-entry-dur {
+    font-size: 11px;
+  }
+  
+  .log-entry-note {
+    font-size: 10px;
+  }
+  
+  /* Charts */
+  .chart-card {
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  
+  .chart-title {
+    font-size: 12px;
+  }
+  
+  .chart-sub {
+    font-size: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .trend-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+  
+  .chart-rec {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  
+  .export-row {
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  
+  .export-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  /* Modal */
+  .modal-overlay {
+    padding: 16px;
+  }
+  
+  .modal-box {
+    padding: 20px;
+    border-radius: 16px;
+  }
+  
+  .modal-icon {
+    font-size: 40px;
+  }
+  
+  .modal-title {
+    font-size: 18px;
+  }
+  
+  .modal-sub {
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .modal-btn {
+    padding: 10px;
+    font-size: 13px;
+  }
+  
+  /* Add alarm modal */
+  .add-alarm-box {
+    max-height: 85vh;
+  }
+  
+  .add-alarm-header {
+    padding: 14px 16px 12px;
+  }
+  
+  .add-alarm-title {
+    font-size: 16px;
+  }
+  
+  .add-alarm-section {
+    padding: 12px 16px;
+  }
+  
+  .add-alarm-section .auth-btn {
+    margin: 0 16px 14px;
+    width: calc(100% - 32px);
+  }
+  
+  .aa-duration-display {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+  
+  .aa-categories {
+    gap: 6px;
+  }
+  
+  .aa-cat-btn {
+    padding: 6px 11px;
+    font-size: 11.5px;
+  }
+  
+  .aa-custom-input {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  
+  /* FAB button */
+  .fab-add {
+    bottom: 20px;
+    right: 18px;
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+  
+  /* Rec box */
+  .rec-box {
+    margin-bottom: 12px;
+  }
+  
+  .rec-row {
+    padding: 10px 12px;
+  }
+  
+  .rec-row-title {
+    font-size: 12px;
+  }
+  
+  .rec-row-text {
+    font-size: 11px;
+  }
+  
+  /* AM/PM picker */
+  .ampm-wrap {
+    padding: 5px 6px;
+  }
+  
+  .ampm-hour,
+  .ampm-min {
+    width: 28px;
+    font-size: 13px;
+  }
+  
+  .ampm-sep {
+    font-size: 13px;
+  }
+  
+  .ampm-btn {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+  
+  .diff-display {
+    font-size: 12px;
+  }
+}
 
-<!-- ── SCHEDULE MODAL ── -->
-<div id="schedule-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box schedule-modal-box">
-    <div class="add-alarm-header">
-      <div class="add-alarm-title" id="schedule-modal-title">📅 Add Schedule</div>
-      <button class="add-alarm-close" onclick="closeScheduleModal()">✕</button>
-    </div>
+/* Tablet adjustments (481px - 768px) */
+@media screen and (min-width: 481px) and (max-width: 768px) {
+  .auth-card {
+    max-width: 380px;
+  }
+  
+  .tab-pane {
+    padding: 0 20px 80px;
+    max-width: 560px;
+  }
+  
+  .hero h2 {
+    font-size: 22px;
+  }
+  
+  .q-card {
+    padding: 16px 18px;
+  }
+  
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .habit-card {
+    padding: 16px 18px;
+  }
+  
+  .calendar-wrap {
+    padding: 14px;
+  }
+  
+  .chart-card {
+    padding: 16px 18px;
+  }
+  
+  .modal-box {
+    max-width: 420px;
+  }
+  
+  .add-alarm-box {
+    max-width: 480px;
+  }
+  
+  .fab-add {
+    bottom: 24px;
+    right: 20px;
+  }
+}
 
-    <!-- Category -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🎯 Activity</div>
-      <div class="aa-categories" id="sc-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="scSelectCat(this)">🌙 Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Work" onclick="scSelectCat(this)">💻 Work</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="scSelectCat(this)">🏃 Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="scSelectCat(this)">📚 Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="scSelectCat(this)">🍽 Meals</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">📱 Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">📖 Reading</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">🧘 Meditation</button>
-        <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button> -->
-      </div>
-      <input type="text" class="aa-custom-input" id="sc-custom-activity" placeholder="Type activity name" oninput="scClearCatIfTyping()">
-    </div>
+/* Large tablet / small desktop (769px - 1024px) */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .tab-pane {
+    max-width: 600px;
+    padding: 0 24px 80px;
+  }
+  
+  .auth-card {
+    max-width: 400px;
+  }
+  
+  .hero h2 {
+    font-size: 24px;
+  }
+  
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 
-    <!-- Date -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">📅 Date</div>
-      <input type="date" id="sc-date" class="lf-date-input">
-    </div>
+/* Desktop adjustments (1025px+) */
+@media screen and (min-width: 1025px) {
+  .tab-pane {
+    max-width: 640px;
+    padding: 0 24px 100px;
+  }
+  
+  .app-header {
+    padding: 16px 28px;
+  }
+  
+  .nav-tabs {
+    padding: 0 24px;
+  }
+  
+  .hero {
+    padding: 32px 24px 24px;
+  }
+  
+  .hero h2 {
+    font-size: 26px;
+  }
+  
+  .hero p {
+    font-size: 14px;
+  }
+  
+  .q-card {
+    padding: 20px 24px;
+    margin-bottom: 12px;
+  }
+  
+  .q-title {
+    font-size: 15px;
+  }
+  
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .stat {
+    padding: 16px;
+  }
+  
+  .stat-val {
+    font-size: 20px;
+  }
+  
+  .habit-card {
+    padding: 20px 24px;
+    margin-bottom: 12px;
+  }
+  
+  .calendar-wrap {
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .chart-card {
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  
+  .fab-add {
+    bottom: 32px;
+    right: 28px;
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+  }
+  
+  .modal-box {
+    max-width: 420px;
+    padding: 28px;
+  }
+  
+  .add-alarm-box {
+    max-width: 480px;
+  }
+}
 
-    <!-- Time range -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">⏰ Time Range</div>
-      <div class="add-alarm-row">
-        <div class="ampm-field" style="flex:1">
-          <label>From</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="sc-from-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected>8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="sc-from-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="sc-from-am" onclick="scSetAmPm('from','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="sc-from-pm" onclick="scSetAmPm('from','PM')">PM</button>
-            </div>
-          </div>
-        </div>
-        <div class="ampm-arrow" style="padding-bottom:8px">→</div>
-        <div class="ampm-field" style="flex:1">
-          <label>Until</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="sc-to-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="sc-to-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="sc-to-am" onclick="scSetAmPm('to','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="sc-to-pm" onclick="scSetAmPm('to','PM')">PM</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="aa-duration-display" id="sc-duration-display">Total Duration: —</div>
-    </div>
+/* Extra small devices (320px - 379px) */
+@media screen and (max-width: 379px) {
+  :root {
+    --r: 10px;
+    --rsm: 5px;
+  }
+  
+  .auth-top {
+    padding: 20px 16px 18px;
+  }
+  
+  .auth-top-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+  }
+  
+  .auth-top h1 {
+    font-size: 16px;
+  }
+  
+  .auth-body {
+    padding: 16px 14px 18px;
+  }
+  
+  .app-logo span {
+    font-size: 13px;
+  }
+  
+  .user-pill-name {
+    display: none;
+  }
+  
+  .logout-btn {
+    display: none;
+  }
+  
+  .nav-tab {
+    padding: 10px 10px;
+    font-size: 10px;
+  }
+  
+  .hero-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  
+  .hero h2 {
+    font-size: 18px;
+  }
+  
+  .opt {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .lbtn {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  
+  .res-emoji {
+    font-size: 24px;
+  }
+  
+  .res-hero h3 {
+    font-size: 16px;
+  }
+  
+  .stat-val {
+    font-size: 14px;
+  }
+  
+  .fab-add {
+    bottom: 16px;
+    right: 14px;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+  
+  .modal-icon {
+    font-size: 36px;
+  }
+  
+  .modal-title {
+    font-size: 16px;
+  }
+  
+  .modal-btn {
+    padding: 9px;
+    font-size: 12px;
+  }
+}
 
-        <!-- Sound -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🔔 Alarm Sound</div>
-      <div class="sound-opts" id="aa-sounds">
-        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">🔔 Bell</button>
-        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
-        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
-        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
-        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
-        <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
-      </div>
-    </div>
+/* Landscape orientation adjustments */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  .auth-card {
+    max-width: 340px;
+  }
+  
+  .auth-top {
+    padding: 16px;
+  }
+  
+  .auth-top-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  
+  .auth-body {
+    padding: 16px;
+  }
+  
+  .hero {
+    padding: 14px 12px 12px;
+  }
+  
+  .hero-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  
+  .hero h2 {
+    font-size: 18px;
+  }
+  
+  .fab-add {
+    bottom: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+}
 
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .app-logo-icon,
+  .hero-icon,
+  .auth-top-icon {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
 
-    <!-- Plan Your Day -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">📝 Plan for the day <span style="font-weight:400;color:var(--hint);text-transform:none">— what to do?</span></div>
-      
-      <!-- Checklist items container -->
-      <div id="sc-checklist" class="sc-checklist"></div>
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .auth-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  
+  .toggle-knob,
+  .fab-add,
+  .opt,
+  .lbtn,
+  .sound-btn,
+  .aa-cat-btn,
+  .auth-btn,
+  #submit-btn,
+  .export-btn,
+  .cal-nav,
+  .cal-day,
+  .icon-action-btn {
+    transition: none;
+  }
+}
 
-      <!-- Add task input -->
-      <div class="sc-task-input-row">
-        <input type="text" id="sc-task-input" class="aa-custom-input sc-task-input" placeholder="Type a task and press Enter or ＋…" onkeydown="scHandleTaskKey(event)">
-        <button type="button" class="sc-add-task-btn" onclick="scAddTask()">＋</button>
-      </div>
+/* Print styles */
+@media print {
+  .fab-add,
+  .nav-tabs,
+  .app-header {
+    display: none !important;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .screen {
+    display: block !important;
+    min-height: auto;
+  }
+  
+  .tab-pane {
+    display: block !important;
+    padding: 0;
+    max-width: 100%;
+  }
+}
 
-      <!-- Quick-add suggestions -->
-      <div class="sc-quick-chips" id="sc-quick-chips">
-        <span class="sc-chips-label">Quick add:</span>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Review notes</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Warm up</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Drink water</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">No phone</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Stretch</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Meditate</button>
-      </div>
-    </div>
+/* ── Quick Alarm history entries ── */
+.qa-history-badge{display:inline-flex;align-items:center;gap:4px;background:var(--purple-lt);border:1px solid rgba(83,74,183,0.2);border-radius:10px;padding:2px 8px;font-size:10.5px;color:var(--purple);font-weight:500;margin-left:6px}
 
-    
+.trendline-legend{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--hint)}
+.trendline-dot{width:18px;height:2px;background:currentColor;display:inline-block;border-top:2px dashed var(--hint)}
+.diff-analysis{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.diff-chip{font-size:11.5px;background:var(--surf2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;color:var(--text)}
+.diff-chip.muted{color:var(--hint)}
+/* ── PLANNED future days on calendar ── */
+.cal-day.has-plan::after{background:var(--purple)!important}
+.cal-day.has-plan{font-weight:500}
 
-    <!-- Save -->
-    <div class="add-alarm-section" style="border-bottom:none">
-      <button class="auth-btn" onclick="saveSchedule()" id="sc-save-btn">💾 Save Schedule</button>
-      <div id="sc-msg" class="auth-msg" style="margin-top:10px"></div>
-    </div>
-  </div>
-</div>
+/* ── LOG FORM CARD (new Tracker tab) ── */
+.log-form-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:4px}
+.lf-section-lbl{font-size:10.5px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.lf-cats{display:flex;flex-wrap:wrap;gap:7px}
+.lf-cat-btn{padding:8px 13px;border:1px solid var(--borderf);border-radius:20px;font-size:12.5px;font-family:'Sora',sans-serif;cursor:pointer;background:var(--surf2);color:var(--muted);transition:all .15s;white-space:nowrap}
+.lf-cat-btn:hover{border-color:var(--green);color:var(--green-dk);background:var(--green-lt)}
+.lf-cat-btn.sel{background:var(--green-lt);border-color:var(--green);border-width:1.5px;color:var(--green-dk);font-weight:600}
+.lf-date-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:13px;color:var(--text);background:var(--surf2);outline:none;transition:border-color .2s}
+.lf-date-input:focus{border-color:var(--green)}
+.lf-reminder-row{margin-top:14px;padding:12px 14px;background:var(--surf2);border-radius:var(--rsm);border:1px solid var(--border)}
+.lf-reminder-lbl{font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:500}
+.lf-reminder-lbl input{accent-color:var(--green);width:15px;height:15px}
+/* ── TRACKER EMPTY STATE ── */
+.tracker-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:60vh;padding:32px 20px;animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.tracker-empty-icon{font-size:48px;margin-bottom:16px;opacity:.4}
+.tracker-empty-title{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--text);margin-bottom:8px}
+.tracker-empty-sub{font-size:13px;color:var(--muted);line-height:1.6;max-width:280px;margin-bottom:32px}
 
-<!-- ── ADD ALARM MODAL ── -->
-<div id="add-alarm-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box add-alarm-box">
-    <div class="add-alarm-header">
-      <div class="add-alarm-title">⏰ Set Alarm</div>
-      <button class="add-alarm-close" onclick="closeAddAlarmModal()">✕</button>
-    </div>
+/* Centered big + button */
+.tracker-fab-center{display:flex;flex-direction:column;align-items:center;gap:10px;background:linear-gradient(135deg,#0F6E56,#1D9E75);border:none;border-radius:24px;padding:20px 36px;cursor:pointer;box-shadow:0 8px 32px rgba(29,158,117,0.4);transition:all .25s;color:#fff}
+.tracker-fab-center:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 14px 40px rgba(29,158,117,0.5)}
+.tracker-fab-center:active{transform:scale(.97)}
+.tracker-fab-plus{font-size:44px;line-height:1;font-weight:300}
+.tracker-fab-label{font-family:'Sora',sans-serif;font-size:14px;font-weight:600;letter-spacing:.03em}
 
-    <!-- Time range -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-row">
-        <div class="ampm-field" style="flex:1">
-          <label>From</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="aa-from-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected>8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="aa-from-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="aa-from-am" onclick="aaSetAmPm('from','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="aa-from-pm" onclick="aaSetAmPm('from','PM')">PM</button>
-            </div>
-          </div>
-        </div>
-        <div class="ampm-arrow" style="padding-bottom:8px">→</div>
-        <div class="ampm-field" style="flex:1">
-          <label>Until</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="aa-to-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="aa-to-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="aa-to-am" onclick="aaSetAmPm('to','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="aa-to-pm" onclick="aaSetAmPm('to','PM')">PM</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="aa-duration-display" id="aa-duration-display">Total Duration: —</div>
-    </div>
+/* Tracker list header */
+.tracker-list-header{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 0 16px}
+.tracker-add-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#1D9E75);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(29,158,117,0.4);transition:all .2s;flex-shrink:0}
+.tracker-add-btn:hover{transform:scale(1.1);box-shadow:0 6px 22px rgba(29,158,117,0.5)}
 
-    <!-- Purpose / category -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🎯 Alarm Purpose</div>
-      <div class="aa-categories" id="aa-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="aaSelectCat(this)">📚 Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="aaSelectCat(this)">😴 Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="aaSelectCat(this)">📱 Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="aaSelectCat(this)">🏃 Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="aaSelectCat(this)">🍽 Meals</button>
-        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="aaSelectCat(this)">✍ Other</button>
-      </div>
-      <input type="text" class="aa-custom-input" id="aa-custom-activity" placeholder="Enter your activity or purpose…" oninput="aaClearCatIfTyping()">
-    </div>
+/* Schedule cards */
+.schedule-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:10px;transition:border-color .2s;animation:fadeIn .3s ease}
+.schedule-card:hover{border-color:var(--borderf)}
+.schedule-card-top{display:flex;align-items:flex-start;gap:12px}
+.schedule-card-icon{width:42px;height:42px;border-radius:12px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.schedule-card-info{flex:1;min-width:0}
+.schedule-card-cat{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.schedule-card-date{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.schedule-date-badge{display:inline-flex;align-items:center;gap:3px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:2px 8px;font-size:11px;color:var(--text);font-weight:500}
+.schedule-date-badge.future{background:var(--purple-lt);border-color:rgba(83,74,183,0.2);color:var(--purple)}
+.schedule-date-badge.today{background:var(--green-lt);border-color:rgba(29,158,117,0.25);color:var(--green-dk)}
+.schedule-date-badge.past{background:var(--surf3);color:var(--hint)}
+.schedule-card-time{font-size:12.5px;color:var(--green-dk);font-weight:500;margin-top:4px}
+.schedule-card-note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;font-style:italic}
+.schedule-card-actions{display:flex;gap:6px;margin-top:12px;border-top:.5px solid var(--border);padding-top:12px}
+.sc-edit-btn{flex:1;padding:8px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.sc-edit-btn:hover{background:var(--green-lt);border-color:var(--green);color:var(--green-dk)}
+.sc-delete-btn{width:36px;height:36px;background:none;border:1px solid var(--border);border-radius:var(--rsm);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--hint)}
+.sc-delete-btn:hover{background:var(--red-lt);border-color:var(--red);color:var(--red)}
 
-    <!-- Sound -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🔔 Alarm Sound</div>
-      <div class="sound-opts" id="aa-sounds">
-        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">🔔 Bell</button>
-        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
-        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
-        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
-        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
-        <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
-      </div>
-    </div>
+/* Schedule modal */
+.schedule-modal-box{max-width:440px;width:100%;max-height:92vh;overflow-y:auto;text-align:left;padding:0}
 
-    <div class="add-alarm-section" style="border-bottom:none">
-      <button class="auth-btn" onclick="saveAddAlarm()">💾 Save Alarm</button>
-      <div id="aa-msg" class="auth-msg" style="margin-top:10px"></div>
-    </div>
-  </div>
-</div>
+/* Grouped date sections */
+.schedule-date-group{margin-bottom:20px}
+.schedule-date-group-label{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.08em;padding:8px 0 10px;border-bottom:.5px solid var(--border);margin-bottom:10px}
 
-<!-- ── ALARM MODAL ── -->
-<div id="alarm-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box">
-    <div class="modal-icon" id="alarm-modal-icon">⏰</div>
-    <div class="modal-title" id="alarm-modal-title">Time to log!</div>
-    <div class="modal-sub" id="alarm-modal-sub">Your reminder is here.</div>
-    <div class="modal-btns">
-      <button class="modal-btn secondary" onclick="dismissAlarm()">Dismiss</button>
-      <button class="modal-btn primary" onclick="goLogFromAlarm()">Log now →</button>
-    </div>
-  </div>
-</div>
-</div>
+/* ── PLAN YOUR DAY CHECKLIST ── */
+.sc-checklist{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;min-height:0}
+.sc-task-row{display:flex;align-items:center;gap:10px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);padding:9px 12px;transition:border-color .15s;animation:fadeIn .18s ease}
+.sc-task-row:hover{border-color:var(--borderf)}
+.sc-task-cb{width:17px;height:17px;accent-color:var(--green);cursor:pointer;flex-shrink:0;border-radius:4px}
+.sc-task-text{flex:1;font-size:13px;color:var(--text);line-height:1.4;word-break:break-word}
+.sc-task-text.done{text-decoration:line-through;color:var(--hint)}
+.sc-task-del{background:none;border:none;cursor:pointer;color:var(--hint);font-size:15px;padding:2px 4px;border-radius:4px;transition:color .12s,background .12s;flex-shrink:0;line-height:1}
+.sc-task-del:hover{color:var(--red);background:var(--red-lt)}
 
-<script src="spttool.js" defer></script>
-</body>
-</html>
+/* Task input row */
+.sc-task-input-row{display:flex;gap:8px;align-items:center}
+.sc-task-input{flex:1;margin:0!important}
+.sc-add-task-btn{width:38px;height:38px;border-radius:var(--rsm);background:var(--green);border:none;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding-bottom:2px}
+.sc-add-task-btn:hover{background:var(--green-dk);transform:scale(1.08)}
+.sc-add-task-btn:active{transform:scale(.96)}
+
+/* Quick-add chips */
+.sc-quick-chips{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sc-quick-chip{padding:4px 12px;border:1px solid var(--border);border-radius:20px;font-size:11.5px;font-family:'Sora',sans-serif;cursor:pointer;background:var(--surf);color:var(--muted);transition:all .12s}
+.sc-quick-chip:hover{border-color:var(--green);color:var(--green-dk);background:var(--green-lt)}
+
+/* Checklist display inside schedule card */
+.sc-card-checklist{margin-top:10px;display:flex;flex-direction:column;gap:5px}
+.sc-card-task{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--muted);line-height:1.4}
+.sc-card-task-cb{width:15px;height:15px;accent-color:var(--green);cursor:pointer;flex-shrink:0;margin-top:1px}
+.sc-card-task-label{flex:1}
+.sc-card-task-label.done{text-decoration:line-through;color:var(--hint)}
+.sc-checklist-count{display:inline-flex;align-items:center;gap:4px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);border-radius:8px;padding:2px 8px;font-size:11px;color:var(--green-dk);font-weight:500;margin-top:5px}
+
+/* ── AI FEEDBACK CARD ── */
+.ai-feedback-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-top:20px;box-shadow:var(--shadow)}
+.ai-feedback-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.ai-feedback-badge{background:linear-gradient(135deg,#534AB7,#2EBF8E);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:.04em}
+.ai-loading{opacity:.8}
+.ai-loading-dots{display:inline-flex;gap:2px;font-size:18px;color:var(--green)}
+.ai-loading-dots span{animation:ai-blink 1.4s infinite;opacity:.2}
+.ai-loading-dots span:nth-child(2){animation-delay:.2s}
+.ai-loading-dots span:nth-child(3){animation-delay:.4s}
+@keyframes ai-blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.ai-loading-text{font-size:13px;color:var(--muted)}
+.ai-block{border-radius:var(--rsm);padding:13px 14px;margin-bottom:12px}
+.ai-block-label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:7px}
+.ai-block p{font-size:13px;line-height:1.7;color:var(--text);margin:0}
+.ai-block-green{background:var(--green-lt);border:1px solid rgba(29,158,117,0.2)}
+.ai-block-green .ai-block-label{color:var(--green-dk)}
+.ai-block-amber{background:var(--amber-lt);border:1px solid rgba(186,117,23,0.2)}
+.ai-block-amber .ai-block-label{color:var(--amber)}
+.ai-block-purple{background:var(--purple-lt);border:1px solid rgba(83,74,183,0.2)}
+.ai-block-purple .ai-block-label{color:var(--purple)}
+.ai-block-plain{background:var(--surf2);border:1px solid var(--border)}
+.ai-block-plain .ai-block-label{color:var(--muted)}
+.ai-block-reminder{background:var(--surf2);border-left:3px solid var(--green);border-radius:var(--rsm);padding:12px 14px;margin-bottom:12px}
+.ai-block-reminder p{font-size:13px;line-height:1.7;color:var(--muted);font-style:italic;margin:0 0 10px}
+.tracker-nav-btn{display:inline-flex;align-items:center;gap:6px;margin-top:2px;padding:7px 14px;background:linear-gradient(135deg,#0F6E56,#1D9E75);border:none;border-radius:20px;color:#fff;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.02em;box-shadow:0 2px 8px rgba(29,158,117,0.25)}
+.tracker-nav-btn:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(29,158,117,0.4)}
+.ai-actions{display:flex;flex-direction:column;gap:8px}
+.ai-action{font-size:13.5px;line-height:1.6;color:var(--text);background:var(--surf);border:1px solid var(--border);border-radius:var(--rsm);padding:10px 14px}
+.ai-sources-toggle{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.ai-sources-toggle summary{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--hint);cursor:pointer;list-style:none;display:flex;align-items:center;gap:5px;user-select:none}
+.ai-sources-toggle summary::-webkit-details-marker{display:none}
+.ai-sources-toggle summary::after{content:'›';font-size:14px;transition:transform .2s;display:inline-block}
+.ai-sources-toggle[open] summary::after{transform:rotate(90deg)}
+.ai-sources-list{padding-left:16px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.ai-sources-list li{font-size:11px;line-height:1.6;color:var(--muted)}
+.ai-sources-list a{color:var(--green-dk);word-break:break-all;text-decoration:none}
+.ai-sources-list a:hover{text-decoration:underline}
+/* ═══════════════════════════════════════
+   TOOLS TAB
+═══════════════════════════════════════ */
+.tool-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:18px 16px;margin-bottom:4px}
+.tool-card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+.tool-card-sub{font-size:12.5px;color:var(--hint);margin-bottom:14px}
+
+/* Single alarm list */
+.sa-alarm-row{display:flex;align-items:center;gap:8px;background:var(--surf2);border:.5px solid var(--border);border-radius:var(--rsm);padding:8px 12px;margin-bottom:6px}
+.sa-alarm-time{font-size:13px;font-weight:700;color:var(--green);min-width:72px}
+.sa-alarm-label{font-size:12.5px;color:var(--text);flex:1}
+.sa-cancel-btn{background:none;border:none;color:var(--hint);font-size:15px;cursor:pointer;padding:2px 4px;border-radius:4px;line-height:1}
+.sa-cancel-btn:hover{color:var(--red,#ef4444)}
+
+/* Stopwatch */
+.sw-display{font-size:48px;font-weight:700;color:var(--text);text-align:center;letter-spacing:.04em;font-variant-numeric:tabular-nums;padding:20px 0 16px;font-family:'Sora',sans-serif}
+.sw-btns{display:flex;gap:8px;justify-content:center;margin-bottom:4px}
+.sw-btn{padding:10px 22px;border-radius:var(--rsm);border:none;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s}
+.sw-btn:disabled{opacity:.4;cursor:not-allowed}
+.sw-btn.start{background:var(--green);color:#fff}
+.sw-btn.pause{background:var(--orange,#f59e0b);color:#fff}
+.sw-btn.stop{background:var(--surf2);color:var(--text);border:.5px solid var(--border)}
+.sw-btn.reset{background:var(--surf2);color:var(--hint);border:.5px solid var(--border)}
+.sw-lap-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:.5px solid var(--border);font-size:12.5px}
+.sw-lap-num{color:var(--hint);min-width:44px;font-weight:600}
+.sw-lap-split{flex:1;color:var(--text);font-weight:600}
+.sw-lap-total{color:var(--hint)}
+/* ── HISTORY: Activity Summary ── */
+.hist-summary-section{margin-top:16px;margin-bottom:24px;border-bottom:1.5px solid var(--border);padding-bottom:20px}
+.hist-summary-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;gap:8px}
+.hist-summary-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.01em}
+.hist-summary-sub{font-size:11px;color:var(--hint)}
+.hist-summary-grid{display:flex;flex-direction:column;gap:8px}
+.hist-summary-card{display:flex;align-items:center;gap:12px;background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:11px 14px}
+.hist-summary-icon{font-size:22px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--surf2);border-radius:10px;flex-shrink:0}
+.hist-summary-info{flex:1;min-width:0}
+.hist-summary-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-summary-sessions{font-size:11px;color:var(--hint);margin-top:2px}
+.hist-summary-total{font-size:16px;font-weight:700;color:var(--green-dk);flex-shrink:0;font-family:'Fraunces',serif}
+
+/* ── History entry source badges ── */
+.sc-history-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;background:var(--purple-lt);color:var(--purple);vertical-align:middle}
+.sc-history-badge.sw-badge{background:var(--amber-lt);color:var(--amber)}
+
+/* ── Trend badge interactive states ── */
+.trend-act-badge:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.trend-legend-chip:hover { filter: brightness(0.92); }

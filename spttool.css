@@ -81,8 +81,6 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .forgot-panel-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px}
 .forgot-panel-title::before{content:'🔑';font-size:14px}
 .settings-divider{height:.5px;background:var(--border);margin:4px 0}
-.settings-actions{padding:16px 20px 4px}
-.settings-actions .auth-btn{margin:0;width:100%}
 .settings-signout{padding:12px 20px 20px;display:flex;justify-content:center}
 .settings-signout-btn{background:none;border:none;font-size:13px;color:var(--muted);cursor:pointer;font-family:'Sora',sans-serif;padding:6px 16px;border-radius:20px;border:.5px solid var(--border);transition:all .2s}
 .settings-signout-btn:hover{background:var(--red-lt);color:var(--red);border-color:rgba(192,57,43,.2)}
@@ -447,10 +445,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
     padding: 14px 16px 4px;
     gap: 12px;
   }
-  
-  .settings-actions {
-    padding: 12px 16px 4px;
-  }
+
   
   .settings-signout {
     padding: 10px 16px 16px;

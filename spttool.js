@@ -183,7 +183,7 @@ const BANKS = [
   'Bhutan Development Bank Ltd.',
   'T Bank Ltd.'
 ];
-const OTP_CODE = '951107';
+const OTP_CODE = "";
 let walletFlow = { step: 1, amount: 100, bank: BANKS[0], account: '', otp: '', message: '', status: '' };
 
 function todayStr() {

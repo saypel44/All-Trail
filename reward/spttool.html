@@ -325,6 +325,7 @@
     <button class="nav-tab" onclick="showTab('tracker')">📋 Tracker</button>
     <button class="nav-tab" onclick="showTab('history')">📅 History</button>
     <button class="nav-tab" onclick="showTab('trends')">📈 Trends</button>
+    <button class="nav-tab" onclick="showTab('rewards')">🏆 Rewards</button>
   </div>
 
   <!-- ── CHECK-IN TAB ── -->
@@ -357,7 +358,7 @@
         <div class="q-num">Question 2</div><p class="q-title">Where do you live?</p>
         <div class="opts" data-q="location">
           <button type="button" class="opt" data-v="Urban"><span class="opt-em"></span> City</button>
-          <button type="button" class="opt" data-v="Semi-urban"><span class="opt-em"></span> Remote</button>
+          <button type="button" class="opt" data-v="Semi-urban"><span class="opt-em"></span> Town</button>
         </div>
       </div>
 
@@ -465,7 +466,7 @@
           <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="swSelectCat(this)">🏃 Exercise</button>
           <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="swSelectCat(this)">🧘 Meditation</button>
           <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="swSelectCat(this)">📖 Reading</button>
-          <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="swSelectCat(this)">✍ Other</button> -->
+          <button type="button" class="aa-cat-btn" data-cat="Other" onclick="swSelectCat(this)">✍ Other</button>
         </div>
         <button class="log-btn" style="margin-top:10px;width:100%" onclick="swLogTime()">💾 Save to History</button>
         <div id="sw-log-msg" class="auth-msg" style="margin-top:6px"></div>
@@ -510,7 +511,37 @@
     <div id="trends-content"></div>
   </div>
 
-  
+  <!-- ── REWARDS TAB ── -->
+  <div id="tab-rewards" class="tab-pane">
+    <div class="wallet-hero">
+      <div>
+        <p class="tracker-page-title">Rewards Wallet</p>
+        <p class="tracker-page-sub">Track tokens, claim daily streak bonuses, and recharge when you need more.</p>
+      </div>
+      <button class="auth-btn" onclick="setRechargeStep(1)">Recharge</button>
+    </div>
+
+    <div class="wallet-status-grid">
+      <div class="wallet-card">
+        <div class="wallet-card-label">Balance</div>
+        <div class="wallet-card-value" id="wallet-available">0</div>
+        <div class="wallet-card-meta">Available tokens</div>
+      </div>
+      <div class="wallet-card">
+        <div class="wallet-card-label">Earned</div>
+        <div class="wallet-card-value" id="wallet-earned">0</div>
+        <div class="wallet-card-meta">All-time earned</div>
+      </div>
+      <div class="wallet-card">
+        <div class="wallet-card-label">Spent</div>
+        <div class="wallet-card-value" id="wallet-spent">0</div>
+        <div class="wallet-card-meta">All-time spent</div>
+      </div>
+    </div>
+
+    <div class="wallet-panel" id="wallet-panel"></div>
+  </div>
+
 <!-- ── FLOATING + BUTTON (hidden on tracker, shown elsewhere) ── -->
 <!-- <button id="fab-add" class="fab-add" onclick="openAddAlarmModal()" title="Set a new alarm">＋</button> -->
 

@@ -27,6 +27,20 @@ function getUserData() {
       _currentData = { logs:[], alarms:{}, habitEnabled:{}, selectedSounds:{}, customSounds:{}, checkInHistory:[], quickAlarms:[] };
     }
     if (!_currentData.quickAlarms) _currentData.quickAlarms = [];
+    if (!_currentData.wallet) {
+      _currentData.wallet = {
+        available: 0,
+        earned: 0,
+        spent: 0,
+        streakDays: 0,
+        lastClaim: '',
+        rewardCalendar: [2, 4, 6, 8, 10, 12, 16],
+        purchaseHistory: []
+      };
+    }
+    if (!_currentData.wallet.rewardCalendar) {
+      _currentData.wallet.rewardCalendar = [2, 4, 6, 8, 10, 12, 16];
+    }
   }
   return _currentData;
 }
@@ -151,13 +165,247 @@ function showTab(t) {
        (t==='tracker'&&b.textContent.includes('Tracker'))||
        (t==='history'&&b.textContent.includes('History'))||
        (t==='trends'&&b.textContent.includes('Trends'))||
+       (t==='rewards'&&b.textContent.includes('Rewards'))||
        (t==='tools'&&b.textContent.includes('Tools'))) {
       b.classList.add('active');
     }
   });
   if(t==='trends') renderTrends();
+  if(t==='rewards') renderRewards();
   if(t==='history'){ renderCalendar(); renderHistory(); }
 }
+
+const TOKEN_RATE = 0.5;
+const BANKS = [
+  'Bank of Bhutan Limited (BoBL)',
+  'Bhutan National Bank Limited',
+  'Druk PNBL',
+  'Bhutan Development Bank Ltd.',
+  'T Bank Ltd.'
+];
+const OTP_CODE = "";
+let walletFlow = { step: 1, amount: 100, bank: BANKS[0], account: '', otp: '', message: '', status: '' };
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysBetween(dateA, dateB) {
+  const a = new Date(dateA + 'T00:00');
+  const b = new Date(dateB + 'T00:00');
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+function getWalletData() {
+  const ud = getUserData();
+  if (!ud) return null;
+  if (!ud.wallet) {
+    ud.wallet = {
+      available: 0,
+      earned: 0,
+      spent: 0,
+      streakDays: 0,
+      lastClaim: '',
+      rewardCalendar: [2, 4, 6, 8, 10, 12, 16],
+      purchaseHistory: []
+    };
+    saveUserData();
+  }
+  if (!ud.wallet.rewardCalendar) ud.wallet.rewardCalendar = [2, 4, 6, 8, 10, 12, 16];
+  return ud.wallet;
+}
+
+function setRechargeStep(step) {
+  walletFlow.step = Math.max(1, Math.min(step, 4));
+  walletFlow.status = '';
+  walletFlow.message = '';
+  renderRewards();
+}
+
+function setRechargeAmount(value) {
+  const amount = Number(value);
+  walletFlow.amount = Number.isFinite(amount) && amount > 0 ? Math.max(1, Math.round(amount)) : 100;
+  renderRewards();
+}
+
+function selectRechargeBank(bank) {
+  walletFlow.bank = bank;
+  walletFlow.step = 2;
+  walletFlow.status = '';
+  walletFlow.message = '';
+  renderRewards();
+}
+
+function updateRechargeAccount(value) {
+  walletFlow.account = value.replace(/[^0-9]/g, '').slice(0, 20);
+  renderRewards();
+}
+
+function setRechargeOtp(value) {
+  walletFlow.otp = value.replace(/[^0-9]/g, '').slice(0, 8);
+  renderRewards();
+}
+
+function sendRechargeOtp() {
+  walletFlow.step = 4;
+  walletFlow.otp = '';
+  walletFlow.status = 'otp-sent';
+  walletFlow.message = '';
+  renderRewards();
+}
+
+function completeRechargePayment() {
+  const wallet = getWalletData();
+  if (walletFlow.otp !== OTP_CODE) {
+    walletFlow.message = 'The code is incorrect. Try 951107.';
+    walletFlow.status = 'error';
+    renderRewards();
+    return;
+  }
+  wallet.available += walletFlow.amount;
+  wallet.earned += walletFlow.amount;
+  wallet.purchaseHistory.push({
+    amount: walletFlow.amount,
+    bank: walletFlow.bank,
+    account: walletFlow.account,
+    purchasedAt: new Date().toISOString()
+  });
+  saveUserData();
+  walletFlow.status = 'success';
+  walletFlow.message = `Payment complete — +${walletFlow.amount} tokens added.`;
+  walletFlow.step = 1;
+  walletFlow.amount = 100;
+  walletFlow.account = '';
+  walletFlow.otp = '';
+  renderRewards();
+}
+
+function canClaimDaily() {
+  const wallet = getWalletData();
+  return wallet && wallet.lastClaim !== todayStr();
+}
+
+function claimDailyReward() {
+  const wallet = getWalletData();
+  const today = todayStr();
+  if (wallet.lastClaim === today) {
+    walletFlow.message = 'You already claimed today.';
+    walletFlow.status = 'error';
+    renderRewards();
+    return;
+  }
+  const streakContinues = wallet.lastClaim && daysBetween(wallet.lastClaim, today) === 1;
+  wallet.streakDays = streakContinues ? Math.min(wallet.streakDays + 1, 7) : 1;
+  const reward = wallet.rewardCalendar[Math.min(wallet.streakDays, 7) - 1];
+  wallet.available += reward;
+  wallet.earned += reward;
+  wallet.lastClaim = today;
+  saveUserData();
+  walletFlow.message = `+${reward} tokens claimed! Your streak is now ${wallet.streakDays} day${wallet.streakDays === 1 ? '' : 's'}.`;
+  walletFlow.status = 'success';
+  renderRewards();
+}
+
+function formatNgultrum(value) {
+  return `Nu. ${value.toFixed(2)}`;
+}
+
+function renderRewards() {
+  const panel = document.getElementById('wallet-panel');
+  if (!panel) return;
+  const wallet = getWalletData();
+  document.getElementById('wallet-available').textContent = wallet.available;
+  document.getElementById('wallet-earned').textContent = wallet.earned;
+  document.getElementById('wallet-spent').textContent = wallet.spent;
+  const today = todayStr();
+  const canClaim = wallet.lastClaim !== today;
+  const nextDay = Math.min(wallet.streakDays + 1, 7);
+  const nextReward = wallet.rewardCalendar[nextDay - 1] || wallet.rewardCalendar[0];
+  const lastClaimText = wallet.lastClaim ? new Date(wallet.lastClaim + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never';
+
+  const rewardBoxes = wallet.rewardCalendar.map((points, index) => {
+    const day = index + 1;
+    const isClaimed = day <= wallet.streakDays;
+    const isToday = canClaim && day === wallet.streakDays + 1;
+    const cls = isClaimed ? 'claimed' : isToday ? 'active' : 'locked';
+    const label = isClaimed ? 'Done' : isToday ? 'Today' : 'Locked';
+    return `<div class="reward-day ${cls}"><div style="font-weight:700">Day ${day}</div><div>+${points}</div><div style="font-size:11px;margin-top:6px">${label}</div></div>`;
+  }).join('');
+
+  let stepHtml = '';
+  if (walletFlow.step === 1) {
+    stepHtml = `
+      <div class="payment-row grid-2">
+        ${[100, 200, 500, 1000].map(amount => `
+          <button type="button" class="payment-option ${walletFlow.amount===amount?'sel':''}" onclick="setRechargeAmount(${amount})">${amount} coins</button>
+        `).join('')}
+      </div>
+      <div class="payment-row">
+        <input class="payment-input" type="number" min="1" value="${walletFlow.amount}" onchange="setRechargeAmount(this.value)" placeholder="Enter coins" />
+        <div class="payment-note">Rate ${formatNgultrum(TOKEN_RATE)} per coin · Total ${formatNgultrum(walletFlow.amount * TOKEN_RATE)}</div>
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(2)">Continue</button>
+      </div>
+    `;
+  } else if (walletFlow.step === 2) {
+    stepHtml = `
+      <div class="payment-row">
+        ${BANKS.map(bank => `
+          <button type="button" class="payment-option ${walletFlow.bank===bank?'sel':''}" onclick="selectRechargeBank('${bank.replace(/'/g,'\\\'')}')">${bank}</button>
+        `).join('')}
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(1)">Back</button>
+        <button type="button" class="auth-btn" onclick="setRechargeStep(3)">Continue</button>
+      </div>
+    `;
+  } else if (walletFlow.step === 3) {
+    const accountReady = walletFlow.account.length >= 8;
+    stepHtml = `
+      <div class="payment-row">
+        <input class="payment-input" type="text" value="${walletFlow.account}" oninput="updateRechargeAccount(this.value)" placeholder="Registered account number" />
+        <div class="payment-note">Bank: ${walletFlow.bank}</div>
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(2)">Back</button>
+        <button type="button" class="auth-btn" onclick="sendRechargeOtp()" ${accountReady ? '' : 'disabled'}>Send OTP</button>
+      </div>
+    `;
+  } else {
+    const isBoBL = walletFlow.bank.includes('BoBL');
+    stepHtml = `
+      <div class="payment-row">
+        <input class="payment-input" type="text" value="${walletFlow.otp}" oninput="setRechargeOtp(this.value)" placeholder="Enter OTP" />
+        ${isBoBL ? `<div class="payment-note">SMS from BoBL: "Your OTP is 951107"</div>` : `<div class="payment-note">One-time OTP sent to your mobile.</div>`}
+      </div>
+      <div class="payment-actions">
+        <button type="button" class="auth-btn" onclick="setRechargeStep(3)">Back</button>
+        <button type="button" class="auth-btn" onclick="completeRechargePayment()">Complete Payment</button>
+      </div>
+    `;
+  }
+
+  panel.innerHTML = `
+    <div class="reward-summary">
+      <h3>Daily streak</h3>
+      <p>${wallet.streakDays ? `You are on a ${wallet.streakDays}-day streak.` : 'Currently at 0 days.'}</p>
+      <div class="reward-status"><span>${canClaim ? 'Ready to claim!' : 'Claimed today'}</span><span>Last claimed: ${lastClaimText}</span></div>
+      <div class="reward-status"><span>Next reward: +${nextReward} tokens</span></div>
+      <button type="button" class="reward-claim-btn" onclick="claimDailyReward()" ${!canClaim ? 'disabled' : ''}>${canClaim ? 'Claim reward' : 'Already claimed'}</button>
+    </div>
+    <div class="reward-calendar">${rewardBoxes}</div>
+    <div class="payment-card">
+      <div class="payment-step-pill">Step ${walletFlow.step} of 4</div>
+      <h3>Recharge wallet</h3>
+      <p>Buy tokens with a Bhutanese bank. Rate is ${formatNgultrum(TOKEN_RATE)} per token.</p>
+      ${stepHtml}
+      ${walletFlow.message ? `<div class="${walletFlow.status === 'success' ? 'payment-success' : 'payment-error'}">${walletFlow.message}</div>` : ''}
+    </div>
+    <div class="payment-summary"><strong>Supported banks:</strong> ${BANKS.join(', ')}</div>
+  `;
+}
+
 
 /* ═══════════════════════════════════════
    CHECK-IN LOGIC
@@ -217,7 +465,7 @@ function lScore(v) {
 function sleepScore() {
   const s={};
   likertQs.forEach(q=>{s[q.id]=lScore(lAnswers[q.id]);});
-  return Math.round(((s.l1+s.l2+s.l3+s.l4+s.l5)/5)*10);
+  return Math.round((((s.l1+s.l2+s.l3+s.l5)/4)+(6-s.l4))/2*10);
 }
 function phoneRisk() {
   return{'no phone before bed':0,'less than 30 minutes':1,'30 min–1 hour':2,'1–2 hours':3,'2–3 hours':4,'more than 3 hours':5}[answers.phonetime]||0;
@@ -307,7 +555,7 @@ function showResults() {
   const poorRested=lAnswers.l3==='Not really'||lAnswers.l3==='No, never';
   const feelEnergetic=lAnswers.l5==='Yes, always'||lAnswers.l5==='Most of the time';
   const lowEnergy=lAnswers.l5==='Not really'||lAnswers.l5==='No, never';
-  const daySleepy=lAnswers.l4==='Not really'||lAnswers.l4==='No, never';
+  const daySleepy=lAnswers.l4==='Yes, always'||lAnswers.l4==='Most of the time';
   const hardToSleep=lAnswers.l1==='Not really'||lAnswers.l1==='No, never';
   const shortSleep=answers.sleep==='0–4 hours'||answers.sleep==='5–6 hours';
   const goodHours=answers.sleep==='7–8 hours'||answers.sleep==='9 or more hours';
@@ -343,7 +591,7 @@ function showResults() {
   const phoneHours = {'no phone before bed':'none','30 min–1 hour':'30 min–1 hr','1–2 hours':'1–2 hrs','2–3 hours':'2–3 hrs','more than 3 hours':'3+ hrs'}[answers.phonetime]||'some';
 
   // ── Outcome-good cards ──
-  if(outcomeGood&&late) recs.push({l:'',t:'✅ You feel great, your late-night routine is working for you',
+  if(outcomeGood&&late) recs.push({l:'',t:'✅ You feel great — your late-night routine is working for you',
     s:`You go to bed ${answers.bedtime} and still feel full of energy. That's great! Try to keep the same bedtime every day — even on weekends. That will help you keep feeling this good.`,
     b:[trackerNudge('sleep','sleep')]});
   else if(outcomeGood) recs.push({l:'',t:'✅ Your habits are working — you feel rested and full of energy',
@@ -351,7 +599,7 @@ function showResults() {
     b:[trackerNudge('sleep','sleep')]});
 
   // ── Sleep quality poor but hours are fine ──
-  if(outcomePoor&&goodHours) recs.push({l:'warn',t:"⚠️ You sleep enough hours but the quality needs a small fix",
+  if(outcomePoor&&goodHours) recs.push({l:'warn',t:"⚠️ You sleep enough hours — but the quality needs a small fix",
     s:`You already sleep ${answers.sleep}, which is good. To feel better, try putting your phone away 30–60 minutes before bed and waking up at the same time each day. This can make your sleep much more restful.`,
     b:[trackerNudge('sleep','sleep hours')]});
 
@@ -517,22 +765,22 @@ function buildLocalFeedback(a, la, sc) {
     whatsGoingWell = `You sleep ${sleep} every night and feel rested and alert all day. That's exactly what healthy sleep looks like. Keep it up! 🎉`;
   } else if (goodSleep && !outcomeGood) {
     track('aasm');
-    whatsGoingWell = `You sleep ${sleep} every night, that's the healthy amount. You've got the foundation right. Now let's make that sleep feel more restful.`;
+    whatsGoingWell = `You sleep ${sleep} every night — that's the healthy amount. You've got the foundation right. Now let's make that sleep feel more restful.`;
   } else if (longSleep && outcomeGood) {
     track('springer');
-    whatsGoingWell = `You make time for sleep, and it shows that you feel rested and full of energy. That's a great habit to protect.`;
+    whatsGoingWell = `You make time for sleep, and it shows — you feel rested and full of energy. That's a great habit to protect.`;
   } else if (shortSleep && feelEnergy) {
     track('aasm');
     whatsGoingWell = `You manage to keep your energy up even on ${sleep}. Getting just a little more rest will help you feel even better.`;
   } else if (noPhone) {
     track('statcan');
-    whatsGoingWell = `You keep your phone away before bed, that's one of the best things you can do for sleep. Well done!`;
+    whatsGoingWell = `You keep your phone away before bed — that's one of the best things you can do for sleep. Well done!`;
   } else if (earlyBed) {
     track('guardian');
     whatsGoingWell = `Going to bed at ${bedtime} gives your body great recovery time. Early bedtimes are really good for your health.`;
   } else if (!overwork && !shortSleep) {
     track('aasm');
-    whatsGoingWell = `You're not overworking and you get enough sleep, that's a healthy balance. Your body has time to rest and recover.`;
+    whatsGoingWell = `You're not overworking and you get enough sleep — that's a healthy balance. Your body has time to rest and recover.`;
   } else {
     track('bmc');
     whatsGoingWell = `You're tracking your habits, and that's the first step. Awareness is how real change starts.`;
@@ -545,22 +793,22 @@ function buildLocalFeedback(a, la, sc) {
   let areaOfImprovement = '';
   if (highPhone && (outcomePoor || !feelRested)) {
     track('statcan');
-    areaOfImprovement = `You use your phone ${phone} before bed. Phone screens trick your brain into thinking it's still daytime  making it harder to fall into deep sleep, even if you don't notice it.`;
+    areaOfImprovement = `You use your phone ${phone} before bed. Phone screens trick your brain into thinking it's still daytime — making it harder to fall into deep sleep, even if you don't notice it.`;
   } else if (medPhone && outcomePoor) {
     track('statcan');
-    areaOfImprovement = `Using your phone ${phone} before bed is likely making your sleep lighter. Cutting that down even by 30 minutes can make a real difference to how rested you feel.`;
+    areaOfImprovement = `Using your phone ${phone} before bed is likely making your sleep lighter. Cutting that down — even by 30 minutes — can make a real difference to how rested you feel.`;
   } else if (shortSleep && outcomePoor) {
     track('aasm');
     areaOfImprovement = `You sleep ${sleep} most nights. Your body needs more time to repair and recharge. Even one extra hour of sleep can noticeably improve your energy and mood.`;
   } else if (overwork && outcomePoor) {
     track('springer');
-    areaOfImprovement = `Working ${workhours} a day makes it hard for your body to switch off at night. Try stopping all work at least 1 hour before bed even a short walk helps your body wind down.`;
+    areaOfImprovement = `Working ${workhours} a day makes it hard for your body to switch off at night. Try stopping all work at least 1 hour before bed — even a short walk helps your body wind down.`;
   } else if (lateNight && outcomePoor) {
     track('guardian');
     areaOfImprovement = `Going to bed ${bedtime} is quite late. Your body sleeps best within a regular window. Try shifting your bedtime just 15 minutes earlier each week.`;
   } else if (hardSleep) {
     track('statcan');
-    areaOfImprovement = `You find it hard to fall asleep. Your brain needs a signal that it's time to rest. Try a calm, screen-free wind-down for 20 minutes before bed do reading, stretching, or just dim lights.`;
+    areaOfImprovement = `You find it hard to fall asleep. Your brain needs a signal that it's time to rest. Try a calm, screen-free wind-down for 20 minutes before bed — reading, stretching, or just dim lights.`;
   } else if (highPhone && outcomeGood) {
     track('statcan');
     areaOfImprovement = `You feel okay now, but ${phone} of phone use before bed is slowly affecting your sleep depth. Moving phone time earlier in the evening is the easiest win.`;
@@ -569,7 +817,7 @@ function buildLocalFeedback(a, la, sc) {
     areaOfImprovement = `You sleep ${sleep} but still feel low on energy. More hours in bed isn't always the fix — sleep quality matters too. A consistent bedtime and less screen time can help.`;
   } else {
     track('guardian');
-    areaOfImprovement = `Try going to bed and waking up at the same time every day even on weekends. It's one of the simplest habits that makes a real difference.`;
+    areaOfImprovement = `Try going to bed and waking up at the same time every day — even on weekends. It's one of the simplest habits that makes a real difference.`;
   }
 
   /* ══════════════════════════════════
@@ -578,20 +826,20 @@ function buildLocalFeedback(a, la, sc) {
   ══════════════════════════════════ */
   const actions = [];
 
-  if (goodSleep)       { track('aasm');     actions.push(`🛌 Keep sleeping ${sleep}, you're right in the healthy range`); }
+  if (goodSleep)       { track('aasm');     actions.push(`🛌 Keep sleeping ${sleep} — you're right in the healthy range`); }
   else if (shortSleep) { track('aasm');     actions.push(`🛌 Go to bed 15 minutes earlier each week until you reach 7–8 hours`); }
-  else if (longSleep)  { track('springer'); actions.push(`🛌 Try to sleep regularly for about 7–8 hours each night. Good, deep sleep is usually more important than just sleeping for many hours`); }
+  else if (longSleep)  { track('springer'); actions.push(`🛌 Try a steady 7–8 hour window — sleep quality often matters more than extra hours`); }
   else                 { track('aasm');     actions.push(`🛌 Aim for 7–8 hours of sleep each night`); }
 
-  if (noPhone)              { track('statcan'); actions.push(`📵 Keep your phone away before bed, that habit is working`); }
+  if (noPhone)              { track('statcan'); actions.push(`📵 Keep your phone away before bed — that habit is working`); }
   else if (lowPhone)        { track('statcan'); actions.push(`📵 Try cutting your pre-bed phone time from ${phone} to under 30 minutes`); }
-  else if (medPhone||highPhone) { track('statcan'); actions.push(`📵 Avoid using your phone or other screens during the final 30 minutes before sleeping because screens can make it harder to fall asleep.`); }
+  else if (medPhone||highPhone) { track('statcan'); actions.push(`📵 Use your phone earlier in the evening — keep the last 30 minutes before bed screen-free`); }
   else                      {                   actions.push(`📵 Put your phone away 30 minutes before you sleep`); }
 
-  if (lateNight)      { track('guardian'); actions.push(`🌙 Try sleeping 15 minutes earlier each week, small changes are easier to maintain.`); }
-  else if (overwork)  { track('springer'); actions.push(`💼 Finish studying or working at least an hour before bedtime so your mind can relax and prepare for sleep.`); }
+  if (lateNight)      { track('guardian'); actions.push(`🌙 Move your bedtime 15 minutes earlier each week — small shifts are easier to stick to`); }
+  else if (overwork)  { track('springer'); actions.push(`💼 Stop work at least 1 hour before bed — your brain needs that gap to switch off`); }
   else if (hardSleep) {                    actions.push(`🌙 Spend 20–30 minutes before bed doing something calm with no screens`); }
-  else                {                    actions.push(`🌙 Keep a consistent wake-up time even on weekends`); }
+  else                {                    actions.push(`🌙 Keep a consistent wake-up time — even on weekends`); }
 
   /* ══════════════════════════════════
      4. CLOSING NOTE  (replaces whyItMatters + gentleReminder)
@@ -599,15 +847,15 @@ function buildLocalFeedback(a, la, sc) {
   ══════════════════════════════════ */
   let gentleReminder = '';
   if (outcomeGood) {
-    gentleReminder = `You're already doing the important things right, consistency is all you need to keep feeling this good.`;
+    gentleReminder = `You're already doing the important things right — consistency is all you need to keep feeling this good.`;
   } else if (highPhone) {
-    gentleReminder = `You don't need to stop using your phone, just move it earlier in your evening. One small shift, big result.`;
+    gentleReminder = `You don't need to stop using your phone — just move it earlier in your evening. One small shift, big result.`;
   } else if (shortSleep) {
-    gentleReminder = `Small gradual changes are easier and more effective than sudden big changes.`;
+    gentleReminder = `You don't need to overhaul your whole schedule — just 15 minutes earlier each week adds up to real, lasting change.`;
   } else if (overwork) {
-    gentleReminder = `Rest isn't the opposite of being productive, it's what makes productivity possible. Protect your wind-down time.`;
+    gentleReminder = `Rest isn't the opposite of being productive — it's what makes productivity possible. Protect your wind-down time.`;
   } else if (lateNight) {
-    gentleReminder = `You don't have to become a morning person, just nudge your bedtime a little earlier and your body will do the rest.`;
+    gentleReminder = `You don't have to become a morning person — just nudge your bedtime a little earlier and your body will do the rest.`;
   } else {
     gentleReminder = `Small, consistent changes to your sleep routine tend to have a much bigger impact than you'd expect.`;
   }
@@ -655,9 +903,6 @@ function renderAIFeedback(section, fb) {
       ${fb.gentleReminder ? `
       <div class="ai-block ai-block-reminder">
         <p>${fb.gentleReminder}</p>
-        <button class="tracker-nav-btn" onclick="showTab('tracker')" title="Go to Tracker">
-          📊 Try the Tracker
-        </button>
       </div>` : ''}
 
       ${sourcesHtml}
@@ -1465,6 +1710,11 @@ function renderTrends(){
   const content=document.getElementById('trends-content');
   if(!content)return;
   const ud=getUserData();
+  const wallet=getWalletData();
+  if(!wallet || wallet.available < 1){
+    content.innerHTML=`<div class="no-data-msg"><div class="no-data-icon">🔒</div><div>Trends are locked until you have tokens.</div><div style="margin-top:6px;font-size:12px;color:var(--hint)">Purchase tokens or claim your daily reward in Rewards.</div><button class="export-btn" onclick="showTab('rewards')" style="margin-top:14px">Open Rewards</button></div>`;
+    return;
+  }
   if(!ud||!ud.logs.length){
     content.innerHTML=`<div class="no-data-msg"><div class="no-data-icon">📊</div><div>No habit logs yet.</div><div style="margin-top:6px;font-size:12px">Log your habits in the Tracker tab to see trends here.</div></div>`;
     return;

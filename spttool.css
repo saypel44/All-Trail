@@ -22,9 +22,11 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .auth-card{background:#fff;border-radius:20px;border:1px solid rgba(29,158,117,0.15);box-shadow:var(--shadow-lg);width:100%;max-width:400px;overflow:hidden;position:relative;z-index:1;animation:cardUp .5s cubic-bezier(.22,1,.36,1) both}
 @keyframes cardUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
 .auth-top{background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#2EBF8E 100%);padding:32px 28px 28px;text-align:center}
-.auth-top-icon{width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px}
-.auth-top h1{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:#fff}
-.auth-top p{font-size:12px;color:rgba(255,255,255,0.75);margin-top:5px}
+.auth-logo-wrap{width:72px;height:72px;border-radius:20px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;overflow:hidden;padding:6px;backdrop-filter:blur(4px)}
+.auth-logo-img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 1px 4px rgba(0,0,0,0.18))}
+.auth-logo-fallback{width:100%;height:100%;border-radius:14px;background:rgba(255,255,255,0.25);align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;letter-spacing:.04em}
+.auth-top h1{font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:#fff;line-height:1.25}
+.auth-top p{font-size:12.5px;color:rgba(255,255,255,0.8);margin-top:6px;line-height:1.5;max-width:240px;margin-left:auto;margin-right:auto}
 .auth-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surf2)}
 .auth-tab{flex:1;padding:13px;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;color:var(--muted);font-family:'Sora',sans-serif;transition:all .2s;border-bottom:2px solid transparent}
 .auth-tab.active{color:var(--green);border-bottom-color:var(--green);background:#fff}
@@ -46,7 +48,9 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 #app-screen{flex-direction:column}
 .app-header{background:#fff;border-bottom:.5px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 .app-logo{display:flex;align-items:center;gap:10px}
-.app-logo-icon{width:34px;height:34px;border-radius:10px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);display:flex;align-items:center;justify-content:center;font-size:16px}
+.app-logo-icon{width:34px;height:34px;border-radius:10px;background:var(--green-lt);border:1px solid rgba(29,158,117,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--green-dk);overflow:hidden;padding:4px;flex-shrink:0}
+.app-logo-img{width:100%;height:100%;object-fit:contain;display:block}
+.app-logo-spt-fallback{font-size:11px;font-weight:700;color:var(--green-dk)}
 .app-logo span{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--text)}
 .user-pill{display:flex;align-items:center;gap:8px;background:var(--surf2);border:.5px solid var(--border);border-radius:20px;padding:6px 12px 6px 7px;cursor:pointer;transition:all .2s}
 .user-pill:hover{border-color:var(--green)}
@@ -99,7 +103,9 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 
 /* ── HERO ── */
 .hero{text-align:center;padding:28px 16px 20px}
-.hero-icon{width:60px;height:60px;border-radius:18px;background:var(--green-lt);border:1.5px solid rgba(29,158,117,0.25);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px}
+.hero-icon{width:60px;height:60px;border-radius:18px;background:var(--green-lt);border:1.5px solid rgba(29,158,117,0.25);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px;overflow:hidden;padding:8px}
+.hero-logo-img{width:100%;height:100%;object-fit:contain;display:block}
+.hero-logo-fallback{font-size:18px;font-weight:700;color:var(--green-dk);display:none;align-items:center;justify-content:center;width:100%;height:100%}
 .hero h2{font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--text);margin-bottom:8px}
 .hero p{font-size:13px;color:var(--muted);line-height:1.7;max-width:380px;margin:0 auto 20px}
 .prog-wrap{margin:0 0 8px}
@@ -1103,12 +1109,14 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
   
   .auth-top-icon {
     width: 42px;
-    height: 42px;
+    height: 35px;
     font-size: 18px;
+    margin-left:0;
   }
   
   .auth-top h1 {
     font-size: 16px;
+    margin-right: 0;
   }
   
   .auth-body {
@@ -1482,3 +1490,98 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 /* ── Trend badge interactive states ── */
 .trend-act-badge:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .trend-legend-chip:hover { filter: brightness(0.92); }
+/* ══════════════════════════════════════════
+   RESPONSIVE — all breakpoints
+══════════════════════════════════════════ */
+
+/* ── Small phones (≤360px) ── */
+@media (max-width: 360px) {
+  #auth-screen { padding: 12px; }
+  .auth-card { border-radius: 16px; }
+  .auth-top { padding: 24px 20px 22px; }
+  .auth-logo-wrap { width: 60px; height: 60px; border-radius: 16px; margin-bottom: 12px; }
+  .auth-top h1 { font-size: 20px; }
+  .auth-top p { font-size: 11.5px; }
+  .auth-body { padding: 20px 16px 24px; }
+  .auth-tabs .auth-tab { padding: 11px 8px; font-size: 12px; }
+  .nav-tabs { padding: 0 8px; }
+  .nav-tab { padding: 10px 10px; font-size: 11px; }
+  .tab-pane { padding: 0 10px 80px; }
+  .sw-display { font-size: 38px; }
+  .add-alarm-box { padding: 16px 14px 20px; }
+}
+
+/* ── Mobile phones (≤480px) ── */
+@media (max-width: 480px) {
+  #auth-screen { padding: 16px; align-items: flex-start; padding-top: 40px; min-height: 100dvh; }
+  .auth-card { max-width: 100%; }
+  .auth-top { padding: 28px 22px 24px; }
+  .auth-logo-wrap { width: 68px; height: 68px; }
+  .auth-body { padding: 20px 20px 24px; }
+  .app-header { padding: 12px 14px; }
+  .app-logo span { font-size: 14px; }
+  .user-pill-name { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab-pane { padding: 0 12px 80px; }
+  .q-card { padding: 14px 16px; }
+  .opts { gap: 6px; }
+  .opt { font-size: 12px; padding: 7px 12px; }
+  .hero h2 { font-size: 20px; }
+  .add-alarm-row { flex-direction: column; gap: 12px; }
+  .ampm-arrow { display: none; }
+  .aa-categories { gap: 6px; }
+  .aa-cat-btn { font-size: 12px; padding: 7px 10px; }
+  .modal-box { padding: 28px 20px 24px; border-radius: 20px; }
+  .settings-box { border-radius: 16px 16px 0 0; max-height: 95dvh; position: fixed; bottom: 0; left: 0; right: 0; max-width: 100%; }
+  .sw-display { font-size: 42px; }
+  .sw-btns { flex-wrap: wrap; }
+  .sw-btn { flex: 1 1 calc(50% - 4px); }
+}
+
+/* ── Tablets (481px – 768px) ── */
+@media (min-width: 481px) and (max-width: 768px) {
+  #auth-screen { padding: 32px 24px; }
+  .auth-card { max-width: 440px; }
+  .tab-pane { max-width: 100%; padding: 0 20px 80px; }
+  .hero h2 { font-size: 22px; }
+  .settings-box { max-width: 480px; }
+}
+
+/* ── Landscape mobile (short height) ── */
+@media (max-height: 600px) and (max-width: 900px) {
+  #auth-screen { padding: 16px; align-items: flex-start; overflow-y: auto; }
+  .auth-top { padding: 20px 24px 18px; }
+  .auth-logo-wrap { width: 52px; height: 52px; margin-bottom: 10px; }
+  .auth-top h1 { font-size: 18px; }
+  .auth-top p { font-size: 11px; margin-top: 4px; }
+  .auth-body { padding: 16px 24px 20px; }
+  .field { margin-bottom: 12px; }
+  .field input { padding: 9px 12px; }
+}
+
+/* ── Large screens (≥1024px) ── */
+@media (min-width: 1024px) {
+  #auth-screen { padding: 40px; }
+  .auth-card { max-width: 420px; }
+  .tab-pane { max-width: 680px; }
+}
+
+/* ── Extra-large (≥1440px) ── */
+@media (min-width: 1440px) {
+  .tab-pane { max-width: 740px; }
+  .hero h2 { font-size: 26px; }
+}
+
+/* ── Touch-device tap targets ── */
+@media (pointer: coarse) {
+  .opt { min-height: 44px; }
+  .auth-btn { min-height: 48px; }
+  .nav-tab { min-height: 44px; }
+  .aa-cat-btn { min-height: 44px; }
+  .sound-btn { min-height: 44px; }
+}
+
+/* ── Safe area (notch/home bar) ── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .tab-pane { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .app-header { padding-top: max(14px, env(safe-area-inset-top)); }
+}

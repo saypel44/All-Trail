@@ -344,8 +344,13 @@
 <div id="auth-screen" class="screen active">
   <div class="auth-card">
     <div class="auth-top">
-      <div class="auth-top-icon">SPT</div>
-      <h1>Quick Tracker</h1>
+      <div class="auth-logo-wrap">
+        <img src="../logo.png" alt="SomPel Tech Logo" class="auth-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="auth-logo-fallback" style="display:none">
+          <span>SPT</span>
+        </div>
+      </div>
+      <h1>ངེ་ Routine</h1>
       <p>Personalised wellness check-ins, just for you</p>
     </div>
     <div class="auth-tabs">
@@ -389,8 +394,10 @@
 <div id="app-screen" class="screen">
   <div class="app-header">
     <div class="app-logo">
-      <div class="app-logo-icon">SPT</div>
-      <span>Quick Tracker</span>
+      <div class="app-logo-icon">
+        <img src="../logo.png" alt="Logo" class="app-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="app-logo-spt-fallback" style="display:none">SPT</span>
+      </div>
+      <span>ངེ་ Routine</span>
     </div>
     <div class="user-pill" onclick="openSettings()" title="Settings">
       <div class="user-avatar" id="hdr-avatar"></div>
@@ -409,7 +416,9 @@
   <!-- ── CHECK-IN TAB ── -->
   <div id="tab-check-in" class="tab-pane active">
     <div class="hero">
-      <div class="hero-icon">SPT</div>
+      <div class="hero-icon">
+        <img src="../logo.png" alt="Logo" class="hero-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="hero-logo-fallback" style="display:none">SPT</span>
+      </div>
       <h2>Hello, <span id="greeting-name"></span> 👋</h2>
       <p>What’s your day ? Get simple, gentle guidance made for you.</p>
       <div class="prog-wrap">

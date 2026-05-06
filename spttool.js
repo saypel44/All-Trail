@@ -77,8 +77,9 @@ function fmtDate(dateStr) {
 function switchTab(tab) {
   document.getElementById('tab-login').style.display  = tab === 'login'  ? '' : 'none';
   document.getElementById('tab-signup').style.display = tab === 'signup' ? '' : 'none';
-  document.querySelectorAll('.auth-tab').forEach((btn, i) => {
-    btn.classList.toggle('active', (i === 0) === (tab === 'login'));
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    const onc = btn.getAttribute('onclick') || '';
+    btn.classList.toggle('active', onc.includes(tab));
   });
 }
 
@@ -86,15 +87,18 @@ async function doLogin() {
   const username = document.getElementById('li-user').value.trim();
   const password = document.getElementById('li-pass').value;
   if (!username || !password) return showMsg('li-msg', 'Please fill in all fields.');
+  showMsg('li-msg', 'Signing in…', false);
   try {
     const data = await apiFetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    startSession(data);
+    console.log('Login OK:', data);
+    await startSession(data);
   } catch (err) {
-    showMsg('li-msg', err.message);
+    console.error('Login error:', err);
+    showMsg('li-msg', err.message || 'Could not connect to server. Is it running on port 3000?');
   }
 }
 
@@ -103,15 +107,18 @@ async function doSignup() {
   const username = document.getElementById('su-user').value.trim();
   const password = document.getElementById('su-pass').value;
   if (!name || !username || !password) return showMsg('su-msg', 'Please fill in all fields.');
+  showMsg('su-msg', 'Creating account…', false);
   try {
     const data = await apiFetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, username, password })
     });
-    startSession(data);
+    console.log('Signup OK:', data);
+    await startSession(data);
   } catch (err) {
-    showMsg('su-msg', err.message);
+    console.error('Signup error:', err);
+    showMsg('su-msg', err.message || 'Could not connect to server. Is it running on port 3000?');
   }
 }
 
@@ -171,20 +178,26 @@ function togglePw(inputId, btn) {
 async function startSession(data) {
   sessionToken    = data.token;
   sessionUsername = data.username;
-  sessionName     = data.name;
+  sessionName     = data.name || 'User';
 
   // Populate header
-  document.getElementById('hdr-name').textContent    = data.name;
-  document.getElementById('greeting-name').textContent = data.name.split(' ')[0];
-  const initials = data.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  document.getElementById('hdr-avatar').textContent  = initials;
+  const name = sessionName;
+  const nameEl = document.getElementById('hdr-name');
+  const greetEl = document.getElementById('greeting-name');
+  const avatarEl = document.getElementById('hdr-avatar');
+  if (nameEl)   nameEl.textContent   = name;
+  if (greetEl)  greetEl.textContent  = name.split(' ')[0];
+  if (avatarEl) avatarEl.textContent = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
-  // Fetch server data
-  await refreshLogs();
-  await refreshAlarms();
+  // Fetch server data (non-blocking — don't let errors stop login)
+  try { await refreshLogs(); }   catch(e) { console.warn('logs:', e.message); }
+  try { await refreshAlarms(); } catch(e) { console.warn('alarms:', e.message); }
 
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('app-screen').classList.add('active');
+  // Switch screens
+  const authScr = document.getElementById('auth-screen');
+  const appScr  = document.getElementById('app-screen');
+  if (authScr) authScr.classList.remove('active');
+  if (appScr)  appScr.classList.add('active');
   showTab('check-in');
 }
 
@@ -252,8 +265,10 @@ function showTab(tabId) {
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
   const pane = document.getElementById('tab-' + tabId);
   if (pane) pane.classList.add('active');
+  // Match nav tab by its onclick attribute value e.g. showTab('check-in')
   document.querySelectorAll('.nav-tab').forEach(b => {
-    if (b.textContent.toLowerCase().includes(tabId.replace('-', ' '))) b.classList.add('active');
+    const onc = b.getAttribute('onclick') || '';
+    if (onc.includes(`'${tabId}'`)) b.classList.add('active');
   });
   if (tabId === 'history') renderHistory();
   if (tabId === 'trends')  renderTrends();

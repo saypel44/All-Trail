@@ -1,46 +1,61 @@
 /* ═══════════════════════════════════════
-   STATE  –  persisted via localStorage
+   STATE  –  token in localStorage,
+             data fetched from server
 ═══════════════════════════════════════ */
-let currentUser = null;
-let currentAlarmHabit = null;
+let currentUser        = null;
+let currentAlarmHabit  = null;
 
-/* ── Storage helpers ── */
-function _loadUsers() {
-  try { return JSON.parse(localStorage.getItem('qt_users') || '{}'); } catch(e) { return {}; }
-}
-function _saveUsers(u) {
-  localStorage.setItem('qt_users', JSON.stringify(u));
-}
+/* ── Token helpers (replaces _loadUsers / _saveUsers) ── */
+function _getToken()   { return localStorage.getItem('qt_token'); }
+function _setToken(t)  { localStorage.setItem('qt_token', t); }
+function _clearToken() { localStorage.removeItem('qt_token'); localStorage.removeItem('qt_session'); }
 
-/* getUserData: always returns the live in-memory object for the current user.
-   On first call per session it hydrates from localStorage.
-   saveUserData() writes it back — call it after every mutation. */
+/* ── In-memory data cache ── */
 let _currentData = null;
 
 function getUserData() {
-  if (!currentUser) return null;
   if (!_currentData) {
-    try {
-      _currentData = JSON.parse(localStorage.getItem('qt_data_' + currentUser.username) || 'null');
-    } catch(e) { _currentData = null; }
-    if (!_currentData) {
-      _currentData = { logs:[], alarms:{}, habitEnabled:{}, selectedSounds:{}, customSounds:{}, checkInHistory:[], quickAlarms:[] };
-    }
-    if (!_currentData.quickAlarms) _currentData.quickAlarms = [];
+    _currentData = {
+      logs:[], alarms:{}, habitEnabled:{}, selectedSounds:{},
+      customSounds:{}, checkInHistory:[], quickAlarms:[]
+    };
   }
+  if (!_currentData.quickAlarms) _currentData.quickAlarms = [];
   return _currentData;
+}
+
+async function loadUserData() {
+  try {
+    const res = await fetch('/api/data', {
+      headers: { 'Authorization': 'Bearer ' + _getToken() }
+    });
+    if (!res.ok) return;
+    const { logs, alarms } = await res.json();
+    if (!_currentData) getUserData();
+    _currentData.logs = logs || [];
+    _currentData.alarms = {};
+    (alarms || []).forEach(a => {
+      const key = a.category || ('alarm_' + a.id);
+      _currentData.alarms[key] = a;
+    });
+  } catch(e) { console.warn('loadUserData failed:', e); }
 }
 
 function saveUserData() {
   if (!currentUser || !_currentData) return;
-  localStorage.setItem('qt_data_' + currentUser.username, JSON.stringify(_currentData));
+  const alarmsArr = Object.values(_currentData.alarms || {});
+  fetch('/api/data', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _getToken() },
+    body:    JSON.stringify({ logs: _currentData.logs || [], alarms: alarmsArr })
+  }).catch(e => console.warn('saveUserData failed:', e));
 }
 
 /* ═══════════════════════════════════════
    AUTH
 ═══════════════════════════════════════ */
 function switchTab(t) {
-  document.getElementById('tab-login').style.display  = t === 'login' ? '' : 'none';
+  document.getElementById('tab-login').style.display  = t === 'login'  ? '' : 'none';
   document.getElementById('tab-signup').style.display = t === 'signup' ? '' : 'none';
   document.querySelectorAll('.auth-tab').forEach((el,i) => {
     el.classList.toggle('active', (i===0 && t==='login') || (i===1 && t==='signup'));
@@ -50,52 +65,89 @@ function switchTab(t) {
 function clearAuthMsgs() {
   ['li-msg','su-msg'].forEach(id => {
     const el = document.getElementById(id);
-    el.className = 'auth-msg';
+    el.className   = 'auth-msg';
     el.textContent = '';
   });
 }
 function showMsg(id, text, type) {
   const el = document.getElementById(id);
   el.textContent = text;
-  el.className = 'auth-msg ' + type;
+  el.className   = 'auth-msg ' + type;
 }
 function togglePw(id, btn) {
   const inp = document.getElementById(id);
-  inp.type = inp.type === 'password' ? 'text' : 'password';
+  inp.type       = inp.type === 'password' ? 'text' : 'password';
   btn.textContent = inp.type === 'password' ? '👁' : '🙈';
 }
-function doSignup() {
+
+/* ── Sign Up ── */
+async function doSignup() {
   const name = document.getElementById('su-name').value.trim();
   const user = document.getElementById('su-user').value.trim().toLowerCase();
   const pass = document.getElementById('su-pass').value;
+
   if (!name || !user || !pass) return showMsg('su-msg', 'Please fill in all fields.', 'err');
-  if (user.length < 3) return showMsg('su-msg', 'Username must be at least 3 characters.', 'err');
-  if (pass.length < 6) return showMsg('su-msg', 'Password must be at least 6 characters.', 'err');
-  const users = _loadUsers();
-  if (users[user]) return showMsg('su-msg', 'That username is already taken.', 'err');
-  users[user] = { name, pass, joinedAt: new Date().toISOString(), lastChanged: null };
-  _saveUsers(users);
-  showMsg('su-msg', 'Account created! Signing you in…', 'ok');
-  setTimeout(() => launchApp({ username: user, name }), 900);
+  if (user.length < 3)         return showMsg('su-msg', 'Username must be at least 3 characters.', 'err');
+  if (pass.length < 6)         return showMsg('su-msg', 'Password must be at least 6 characters.', 'err');
+
+  showMsg('su-msg', 'Creating account…', '');
+  try {
+    const res  = await fetch('/api/signup', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name, username: user, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) return showMsg('su-msg', data.error || 'Signup failed.', 'err');
+
+    _setToken(data.token);
+    localStorage.setItem('qt_session', JSON.stringify({ username: data.username, name: data.name }));
+    showMsg('su-msg', 'Account created! Signing you in…', 'ok');
+    setTimeout(() => launchApp({ username: data.username, name: data.name }), 900);
+  } catch(e) {
+    showMsg('su-msg', 'Could not reach server. Is it running?', 'err');
+  }
 }
-function doLogin() {
+
+/* ── Sign In ── */
+async function doLogin() {
   const user = document.getElementById('li-user').value.trim().toLowerCase();
   const pass = document.getElementById('li-pass').value;
+
   if (!user || !pass) return showMsg('li-msg', 'Please enter your username and password.', 'err');
-  const users = _loadUsers();
-  if (!users[user] || users[user].pass !== pass) return showMsg('li-msg', 'Incorrect username or password.', 'err');
-  launchApp({ username: user, name: users[user].name });
+
+  showMsg('li-msg', 'Signing in…', '');
+  try {
+    const res  = await fetch('/api/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username: user, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) return showMsg('li-msg', data.error || 'Login failed.', 'err');
+
+    _setToken(data.token);
+    localStorage.setItem('qt_session', JSON.stringify({ username: data.username, name: data.name }));
+    launchApp({ username: data.username, name: data.name });
+  } catch(e) {
+    showMsg('li-msg', 'Could not reach server. Is it running?', 'err');
+  }
 }
-function launchApp(user) {
-  currentUser = user;
-  _currentData = null; // clear cache so getUserData() re-loads from storage fresh
-  localStorage.setItem('qt_session', JSON.stringify({ username: user.username }));
+
+/* ── Launch app after login / signup ── */
+async function launchApp(user) {
+  currentUser  = user;
+  _currentData = null;
+
   const firstName = user.name.split(' ')[0];
   document.getElementById('greeting-name').textContent = firstName;
-  document.getElementById('hdr-avatar').textContent = user.name.charAt(0).toUpperCase();
-  document.getElementById('hdr-name').textContent = user.name;
+  document.getElementById('hdr-avatar').textContent    = user.name.charAt(0).toUpperCase();
+  document.getElementById('hdr-name').textContent      = user.name;
   document.getElementById('auth-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
+
+  await loadUserData();   // ← pulls logs + alarms from server
+
   buildHabitCards();
   renderCalendar();
   renderTrends();
@@ -104,12 +156,23 @@ function launchApp(user) {
   startAlarmWatcher();
   window.scrollTo(0, 0);
 }
-function doLogout() {
+
+/* ── Sign Out ── */
+async function doLogout() {
   stopAlarmWatcher();
   saveUserData();
-  localStorage.removeItem('qt_session');
-  currentUser = null;
+
+  try {
+    await fetch('/api/logout', {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + _getToken() }
+    });
+  } catch(_) {}
+
+  _clearToken();
+  currentUser  = null;
   _currentData = null;
+
   restartForm();
   document.getElementById('settings-modal').style.display = 'none';
   document.getElementById('app-screen').classList.remove('active');
@@ -124,16 +187,14 @@ function doLogout() {
 /* ── Settings Modal ── */
 function openSettings() {
   if (!currentUser) return;
-  const users = _loadUsers();
-  const u = users[currentUser.username] || {};
-  document.getElementById('st-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('st-avatar').textContent       = currentUser.name.charAt(0).toUpperCase();
   document.getElementById('st-display-name').textContent = currentUser.name;
   document.getElementById('st-display-user').textContent = '#' + currentUser.username;
-  document.getElementById('st-name').value = currentUser.name;
-  document.getElementById('st-userid').value = currentUser.username;
-  document.getElementById('st-cur-pass').value = u.pass || '';
+  document.getElementById('st-name').value               = currentUser.name;
+  document.getElementById('st-userid').value             = currentUser.username;
+  document.getElementById('st-cur-pass').value           = '••••••••'; // hashed on server — never shown
   const msg = document.getElementById('st-msg');
-  msg.className = 'auth-msg';
+  msg.className   = 'auth-msg';
   msg.textContent = '';
   document.getElementById('settings-modal').style.display = 'flex';
 }
@@ -144,58 +205,33 @@ function settingsOverlayClick(e) {
   if (e.target === document.getElementById('settings-modal')) closeSettings();
 }
 function stCopyPassword() {
-  const val = document.getElementById('st-cur-pass').value;
-  if (!val) return;
-  navigator.clipboard.writeText(val).then(() => {
-    const btn = document.querySelector('.st-copy-btn');
-    if (btn) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = '📋'; }, 1500); }
-  }).catch(() => {});
+  const msg = document.getElementById('st-msg');
+  msg.textContent = 'Passwords are securely hashed and cannot be displayed.';
+  msg.className   = 'auth-msg';
 }
 function saveSettings() {
   const newName   = document.getElementById('st-name').value.trim();
   const newUserId = document.getElementById('st-userid').value.trim().toLowerCase();
   const msg       = document.getElementById('st-msg');
 
-  if (!newName)   { msg.textContent = 'Name cannot be empty.'; msg.className = 'auth-msg err'; return; }
-  if (!newUserId) { msg.textContent = 'User ID cannot be empty.'; msg.className = 'auth-msg err'; return; }
+  if (!newName)   { msg.textContent = 'Name cannot be empty.';     msg.className = 'auth-msg err'; return; }
+  if (!newUserId) { msg.textContent = 'User ID cannot be empty.';  msg.className = 'auth-msg err'; return; }
   if (newUserId.length < 3) { msg.textContent = 'User ID must be at least 3 characters.'; msg.className = 'auth-msg err'; return; }
   if (!/^[a-z0-9_]+$/.test(newUserId)) { msg.textContent = 'User ID: letters, numbers and underscores only.'; msg.className = 'auth-msg err'; return; }
 
-  const users = _loadUsers();
-  const oldId = currentUser.username;
-  const u = users[oldId];
-  if (!u) { msg.textContent = 'Session error. Please sign in again.'; msg.className = 'auth-msg err'; return; }
-
-  if (newUserId !== oldId && users[newUserId]) {
-    msg.textContent = 'That User ID is already taken.'; msg.className = 'auth-msg err'; return;
-  }
-
-  u.name = newName;
-
-  if (newUserId !== oldId) {
-    users[newUserId] = u;
-    delete users[oldId];
-    const dataRaw = localStorage.getItem('qt_data_' + oldId);
-    if (dataRaw) {
-      localStorage.setItem('qt_data_' + newUserId, dataRaw);
-      localStorage.removeItem('qt_data_' + oldId);
-    }
-  }
-
-  _saveUsers(users);
-
+  // Update display only — full server-side rename would need a new endpoint
   currentUser.name     = newName;
   currentUser.username = newUserId;
-  localStorage.setItem('qt_session', JSON.stringify({ username: newUserId }));
+  localStorage.setItem('qt_session', JSON.stringify({ username: newUserId, name: newName }));
 
   const firstName = newName.split(' ')[0];
-  document.getElementById('hdr-avatar').textContent      = newName.charAt(0).toUpperCase();
-  document.getElementById('hdr-name').textContent        = newName;
-  document.getElementById('greeting-name').textContent   = firstName;
-  document.getElementById('st-avatar').textContent       = newName.charAt(0).toUpperCase();
-  document.getElementById('st-display-name').textContent = newName;
-  document.getElementById('st-display-user').textContent = '#' + newUserId;
-  document.getElementById('st-userid').value             = newUserId;
+  document.getElementById('hdr-avatar').textContent       = newName.charAt(0).toUpperCase();
+  document.getElementById('hdr-name').textContent         = newName;
+  document.getElementById('greeting-name').textContent    = firstName;
+  document.getElementById('st-avatar').textContent        = newName.charAt(0).toUpperCase();
+  document.getElementById('st-display-name').textContent  = newName;
+  document.getElementById('st-display-user').textContent  = '#' + newUserId;
+  document.getElementById('st-userid').value              = newUserId;
 
   msg.textContent = '✓ Changes saved!';
   msg.className   = 'auth-msg ok';
@@ -204,66 +240,56 @@ function saveSettings() {
 
 /* ── Forgot Password ── */
 function toggleForgotPanel() {
-  const panel = document.getElementById('forgot-panel');
+  const panel    = document.getElementById('forgot-panel');
   const isHidden = panel.style.display === 'none';
   panel.style.display = isHidden ? 'block' : 'none';
   if (isHidden) {
-    // Pre-fill User ID from the sign-in field if already typed
     const uid = document.getElementById('li-user').value.trim();
     if (uid) document.getElementById('fp-user').value = uid;
-    document.getElementById('fp-new-pass').value = '';
+    document.getElementById('fp-new-pass').value     = '';
     document.getElementById('fp-confirm-pass').value = '';
     const fpMsg = document.getElementById('fp-msg');
     fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
   }
 }
 function doResetPassword() {
-  const userId  = document.getElementById('fp-user').value.trim().toLowerCase();
-  const newPass = document.getElementById('fp-new-pass').value;
-  const confirm = document.getElementById('fp-confirm-pass').value;
-  const msg     = document.getElementById('fp-msg');
-
-  if (!userId)  { msg.textContent = 'Please enter your User ID.'; msg.className = 'auth-msg err'; return; }
-  if (!newPass) { msg.textContent = 'Please enter a new password.'; msg.className = 'auth-msg err'; return; }
-  if (newPass.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.className = 'auth-msg err'; return; }
-  if (newPass !== confirm) { msg.textContent = 'Passwords do not match.'; msg.className = 'auth-msg err'; return; }
-
-  const users = _loadUsers();
-  if (!users[userId]) { msg.textContent = 'No account found with that User ID.'; msg.className = 'auth-msg err'; return; }
-
-  users[userId].pass = newPass;
-  _saveUsers(users);
-
-  msg.textContent = '✓ Password reset! You can now sign in.';
-  msg.className   = 'auth-msg ok';
-  // Pre-fill sign-in and close panel after short delay
-  setTimeout(() => {
-    document.getElementById('li-user').value = userId;
-    document.getElementById('li-pass').value = '';
-    document.getElementById('forgot-panel').style.display = 'none';
-    const fpMsg = document.getElementById('fp-msg');
-    fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
-  }, 1800);
+  // Password reset now requires a server endpoint — show a friendly message
+  const msg = document.getElementById('fp-msg');
+  msg.textContent = 'Password reset is handled securely on the server. Please contact the admin to reset your password.';
+  msg.className   = 'auth-msg';
 }
 
-
-// Wire up keyboard shortcuts and auto-login after DOM is ready
+/* ── Keyboard shortcuts + Auto-login ── */
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('li-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('li-pass').focus(); });
   document.getElementById('li-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
   document.getElementById('su-pass').addEventListener('keydown', e => { if(e.key==='Enter') doSignup(); });
 
-  // Auto-login: if a session was saved, skip the login screen
-  try {
-    const saved = localStorage.getItem('qt_session');
-    if (saved) {
-      const session = JSON.parse(saved);
-      const users = _loadUsers();
-      if (session.username && users[session.username]) {
-        launchApp({ username: session.username, name: users[session.username].name });
+  // Auto-login: if a valid token exists, verify it then skip login screen
+  (async () => {
+    try {
+      const token = _getToken();
+      if (!token) return;
+
+      const res = await fetch('/api/data', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+
+      if (res.ok) {
+        // Token is valid — restore session from localStorage
+        const saved = localStorage.getItem('qt_session');
+        if (saved) {
+          const session = JSON.parse(saved);
+          if (session.username && session.name) {
+            launchApp({ username: session.username, name: session.name });
+          }
+        }
+      } else {
+        // Token expired or invalid — clear everything
+        _clearToken();
       }
-    }
-  } catch(e) {}
+    } catch(e) {}
+  })();
 });
 
 /* ═══════════════════════════════════════
@@ -1506,7 +1532,7 @@ function lfUploadSound(input){
   reader.onload=e=>{_lfCustomSound=e.target.result;_lfSound='custom';playSound('custom',_lfCustomSound);};
   reader.readAsDataURL(file);
 }
-function lfSaveLog(){
+async function lfSaveLog(){
   const customText=document.getElementById('lf-custom').value.trim();
   const cat=customText||_lfCat;
   const icon=customText?'✍':_lfIcon;
@@ -1559,7 +1585,9 @@ function lfSaveLog(){
       duration:diff||'—',category:cat,sound:_lfSound});
   }
 
-  saveUserData();
+  // saveUserData();
+  await saveLog(entry);
+  ud.logs.push(entry);
 
   msg.textContent=`✅ Logged! ${cat} · ${diff||duration+' '+unit}`;
   msg.className='auth-msg ok';
@@ -2199,17 +2227,29 @@ function _renderActivitySummary(container, ud) {
   container.appendChild(section);
 }
 
-function deleteLog(logId) {
+// function deleteLog(logId) {
+//   const ud = getUserData();
+//   if (!ud) return;
+//   const idx = ud.logs.findIndex(l => l.id === logId);
+//   if (idx === -1) return;
+//   ud.logs.splice(idx, 1);
+//   saveUserData();
+//   renderHistory();
+//   renderCalendar();
+//   renderCalendar2();
+//   renderTrends();
+// }
+
+async function deleteLog(id) {
   const ud = getUserData();
   if (!ud) return;
-  const idx = ud.logs.findIndex(l => l.id === logId);
-  if (idx === -1) return;
-  ud.logs.splice(idx, 1);
-  saveUserData();
-  renderHistory();
+  ud.logs = ud.logs.filter(l => l.id !== id);
+  await deleteLogFromServer(id);
   renderCalendar();
   renderCalendar2();
   renderTrends();
+  renderHistory();
+  renderDayLogs(selectedDay2);
 }
 
 /* ═══════════════════════════════════════

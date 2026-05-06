@@ -135,6 +135,29 @@ async function doLogin() {
 }
 
 /* ── Launch app after login / signup ── */
+// async function launchApp(user) {
+//   currentUser  = user;
+//   _currentData = null;
+
+//   const firstName = user.name.split(' ')[0];
+//   document.getElementById('greeting-name').textContent = firstName;
+//   document.getElementById('hdr-avatar').textContent    = user.name.charAt(0).toUpperCase();
+//   document.getElementById('hdr-name').textContent      = user.name;
+//   document.getElementById('auth-screen').classList.remove('active');
+//   document.getElementById('app-screen').classList.add('active');
+
+//   await loadUserData();   // ← pulls logs + alarms from server
+
+//   buildHabitCards();
+//   renderCalendar();
+//   renderTrends();
+//   renderHistory();
+//   renderTrackerSchedules();
+//   startAlarmWatcher();
+//   window.scrollTo(0, 0);
+// }
+
+
 async function launchApp(user) {
   currentUser  = user;
   _currentData = null;
@@ -146,7 +169,10 @@ async function launchApp(user) {
   document.getElementById('auth-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
 
-  await loadUserData();   // ← pulls logs + alarms from server
+  await loadUserData();
+
+  // Wait for DOM to finish showing the app screen
+  await new Promise(r => setTimeout(r, 50));
 
   buildHabitCards();
   renderCalendar();
@@ -448,7 +474,8 @@ function showResults() {
       lAnswers:{...lAnswers},
       score:sleepScore()
     });
-    saveUserData();
+    // saveUserData();
+    // saveUserData(); // migrated to server
   }
 
   const sc=sleepScore();
@@ -1045,7 +1072,7 @@ function setAlarmAmPm(id){
   const from=getAmPmVal(`alarm-${id}-from`);
   const to=getAmPmVal(`alarm-${id}-to`);
   ud.alarms[id]={from,to,active:true};
-  saveUserData();
+  // saveUserData(); // migrated to server
   buildHabitCards();
   // re-open alarm panel
   setTimeout(()=>{ const p=document.getElementById('alarm-panel-'+id); if(p)p.style.display='block'; },50);
@@ -1053,14 +1080,14 @@ function setAlarmAmPm(id){
 function clearAlarm(id){
   const ud=getUserData();if(!ud)return;
   ud.alarms[id]={active:false};
-  saveUserData();
+  // saveUserData(); // migrated to server
   buildHabitCards();
 }
 
 function toggleHabit(id){
   const ud=getUserData();if(!ud)return;
   ud.habitEnabled[id]=!ud.habitEnabled[id];
-  saveUserData();
+  // saveUserData(); // migrated to server
   buildHabitCards();
 }
 
@@ -1071,7 +1098,7 @@ function selectSound(habitId,soundId,btn){
   container.querySelectorAll('.sound-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');
   playSound(soundId,ud.customSounds[habitId]);
-  saveUserData();
+  // saveUserData(); // migrated to server
 }
 
 function uploadSound(habitId,input){
@@ -1081,7 +1108,7 @@ function uploadSound(habitId,input){
   reader.onload=e=>{
     ud.customSounds[habitId]=e.target.result;
     ud.selectedSounds[habitId]='custom';
-    saveUserData();
+    // saveUserData(); // migrated to server
     const card=document.getElementById('habit-card-'+habitId);
     if(card){
       card.querySelectorAll('.sound-btn').forEach(b=>b.classList.remove('sel'));
@@ -1116,7 +1143,7 @@ function logHabit(id){
     note
   };
   ud.logs.push(entry);
-  saveUserData();
+  // saveUserData(); // migrated to server
   document.getElementById('dur-'+id).value='';
   document.getElementById('note-'+id).value='';
   const btn=document.querySelector(`#habit-card-${id} .log-btn`);
@@ -1359,7 +1386,7 @@ function convertCalEventToSchedule(title, date) {
   };
   
   ud.schedules.push(entry);
-  saveUserData();
+  // saveUserData(); // migrated to server
   renderTrackerSchedules();
   alert(`✅ Added "${title}" to your Tracker schedules!`);
 }
@@ -2454,7 +2481,7 @@ function saveAddAlarm() {
     isQuickAlarm: true
   });
 
-  saveUserData();
+  // saveUserData(); // migrated to server
 
   // Schedule the alarm notification
   _scheduleQuickAlarm(entry);
@@ -2814,7 +2841,7 @@ function saveSchedule() {
   }
 
   msgEl.className = 'auth-msg ok';
-  saveUserData();
+  // // saveUserData(); // migrated to server
   renderTrackerSchedules();
   renderHistory();
   renderTrends();
@@ -2828,7 +2855,7 @@ function deleteSchedule(id) {
   ud.schedules = (ud.schedules || []).filter(s => s.id !== id);
   // Also remove the matching log entry
   ud.logs = ud.logs.filter(l => l.scheduleId !== id);
-  saveUserData();
+  // saveUserData(); // migrated to server
   renderTrackerSchedules();
   renderHistory();
   renderTrends();
@@ -3088,7 +3115,7 @@ function scToggleCardTask(scheduleId, taskIdx, cb) {
   const sc = ud.schedules.find(s => s.id === scheduleId);
   if (!sc || !sc.tasks || !sc.tasks[taskIdx]) return;
   sc.tasks[taskIdx].done = cb.checked;
-  saveUserData();
+  // saveUserData(); // migrated to server
 
   // Update label style + count inline without full re-render
   const lbl = document.getElementById(`task-lbl-${scheduleId}-${taskIdx}`);
@@ -3364,7 +3391,7 @@ function swLogTime() {
     note:       `Stopwatch · ${_swFmt(ms)}`
   });
 
-  saveUserData();
+  // saveUserData();
   if (typeof renderHistory         === 'function') renderHistory();
   if (typeof renderCalendar        === 'function') renderCalendar();
   if (typeof renderCalendar2       === 'function') renderCalendar2();

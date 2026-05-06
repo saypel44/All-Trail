@@ -226,5 +226,8 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`\n✅  Quick Tracker server running`);
   console.log(`   Open →  http://localhost:${PORT}\n`);
-  console.log('   Tables: users | logs | alarms | sessions\n');
+  console.log('   Routes:
+   POST /api/signup   POST /api/login
+   GET  /api/logs     POST /api/logs     DELETE /api/logs/:id
+   GET  /api/alarms   POST /api/alarms   DELETE /api/alarms/:id\n');
 });

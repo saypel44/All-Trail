@@ -1,16 +1,11 @@
 'use strict';
 
-/* ═══════════════════════════════════════════════════════════
-   server.js  –  Quick Tracker backend
-   Stack: Express → mysql2 → MySQL  (users_db database)
-   ═══════════════════════════════════════════════════════════ */
-
 const express = require('express');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const path = require('path'); // Needed to fix your CSS/JS paths
+const path = require('path');
 
 const app = express();
 const PORT = 3000;
@@ -27,12 +22,9 @@ const DB_CONFIG = {
 const JWT_SECRET  = process.env.JWT_SECRET  || 'change-me-in-production-secret-key';
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '7d';
 
-// ── Middleware (CRITICAL ORDER) ───────────────────────────
+// ── Middleware ───────────────────────────
 app.use(cors());
 app.use(express.json());
-
-// THIS LINE FIXES THE "BEAUTY LOST" ISSUE
-// It tells Express to serve your CSS/JS files from the current folder
 app.use(express.static(__dirname));
 
 // ── DB Pool ───────────────────────────────────────────────
@@ -48,6 +40,7 @@ async function getPool() {
 async function initDB() {
   const db = await getPool();
 
+  // Users Table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -58,6 +51,7 @@ async function initDB() {
     )
   `);
 
+  // Activity Logs Table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS logs (
       id           INT AUTO_INCREMENT PRIMARY KEY,
@@ -76,6 +70,7 @@ async function initDB() {
     )
   `);
 
+  // Alarms Table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS alarms (
       id         INT AUTO_INCREMENT PRIMARY KEY,
@@ -90,10 +85,24 @@ async function initDB() {
     )
   `);
 
-  console.log('✅  DB tables ready (users, logs, alarms)');
+  // NEW: Check-ins / Survey Results Table
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS checkins (
+      id           INT AUTO_INCREMENT PRIMARY KEY,
+      user_id      INT NOT NULL,
+      score        INT,
+      feedback     TEXT,
+      recommendations JSON,
+      date         DATE,
+      created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  console.log('✅  DB tables ready (including Check-ins)');
 }
 
-// ── JWT helpers ───────────────────────────────────────────
+// ── Auth Helpers ──────────────────────────────────────────
 function signToken(userId) {
   return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
@@ -110,94 +119,80 @@ function verifyToken(req, res, next) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-//  ROUTES
-// ══════════════════════════════════════════════════════════
+// ── ROUTES ────────────────────────────────────────────────
 
-// Serve the main HTML file
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'spttool.html'));
-});
-
-// Favicon route to avoid harmless 404s in browser console
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'spttool.html')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-// AUTH ROUTES
+// Auth
 app.post('/api/signup', async (req, res) => {
   try {
     const { name, username, password } = req.body;
-    if (!name || !username || !password) return res.status(400).json({ error: 'Required fields missing' });
     const db = await getPool();
-    const [existing] = await db.execute('SELECT id FROM users WHERE username = ?', [username]);
-    if (existing.length) return res.status(409).json({ error: 'Username taken' });
-
     const hash = await bcrypt.hash(password, 10);
     const [result] = await db.execute('INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)', [name, username, hash]);
-    res.json({ token: signToken(result.insertId), username, name, userId: result.insertId });
-  } catch (err) { res.status(500).json({ error: 'Signup error' }); }
+    res.json({ token: signToken(result.insertId), username, name });
+  } catch (err) { res.status(500).json({ error: 'Username taken or DB error' }); }
 });
 
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const db = await getPool();
-    const [rows] = await db.execute('SELECT id, name, username, password_hash FROM users WHERE username = ?', [username]);
-    if (!rows.length || !(await bcrypt.compare(password, rows[0].password_hash))) 
-        return res.status(401).json({ error: 'Invalid credentials' });
-    res.json({ token: signToken(rows[0].id), username: rows[0].username, name: rows[0].name, userId: rows[0].id });
+    const [rows] = await db.execute('SELECT * FROM users WHERE username = ?', [username]);
+    if (!rows.length || !(await bcrypt.compare(password, rows[0].password_hash))) return res.status(401).json({ error: 'Invalid credentials' });
+    res.json({ token: signToken(rows[0].id), username: rows[0].username, name: rows[0].name });
   } catch (err) { res.status(500).json({ error: 'Login error' }); }
 });
 
-// LOGS ROUTES
+// Logs
 app.get('/api/logs', verifyToken, async (req, res) => {
-  try {
-    const db = await getPool();
-    const [rows] = await db.execute(`SELECT id, habit_name AS habitName, habit_icon AS habitIcon, DATE_FORMAT(date,'%Y-%m-%d') AS date, duration, unit, display_unit AS displayUnit, start_time AS startTime, end_time AS endTime, note FROM logs WHERE user_id = ? ORDER BY date DESC, id DESC`, [req.userId]);
-    res.json(rows);
-  } catch (err) {
-    console.error('Fetch logs error:', err);
-    res.status(500).json({ error: 'Fetch logs error' });
-  }
+  const db = await getPool();
+  const [rows] = await db.execute(`SELECT *, DATE_FORMAT(date,'%Y-%m-%d') as date FROM logs WHERE user_id = ? ORDER BY date DESC`, [req.userId]);
+  res.json(rows);
 });
 
 app.post('/api/logs', verifyToken, async (req, res) => {
-  try {
-    const { habitName, habitIcon, date, duration, unit, displayUnit, startTime, endTime, note } = req.body;
-    const db = await getPool();
-    const [result] = await db.execute(`INSERT INTO logs (user_id, habit_name, habit_icon, date, duration, unit, display_unit, start_time, end_time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [req.userId, habitName, habitIcon, date, duration, unit, displayUnit, startTime, endTime, note]);
-    res.json({ id: result.insertId, ok: true });
-  } catch (err) { res.status(500).json({ error: 'Save log error' }); }
+  const { habitName, habitIcon, date, duration, unit, displayUnit, startTime, endTime, note } = req.body;
+  const db = await getPool();
+  await db.execute(`INSERT INTO logs (user_id, habit_name, habit_icon, date, duration, unit, display_unit, start_time, end_time, note) VALUES (?,?,?,?,?,?,?,?,?,?)`, 
+    [req.userId, habitName, habitIcon, date, duration, unit, displayUnit, startTime, endTime, note]);
+  res.json({ ok: true });
 });
 
-// ALARMS ROUTES
-app.get('/api/alarms', verifyToken, async (req, res) => {
+// NEW: Survey / Check-in Route
+app.post('/api/checkins', verifyToken, async (req, res) => {
   try {
+    const { score, feedback, recommendations, date } = req.body;
     const db = await getPool();
-    const [rows] = await db.execute(`SELECT id, from_time, to_time, category, sound, DATE_FORMAT(date,'%Y-%m-%d') AS date FROM alarms WHERE user_id = ? ORDER BY from_time ASC`, [req.userId]);
-    res.json(rows);
-  } catch (err) {
-    console.error('Fetch alarms error:', err);
-    res.status(500).json({ error: 'Fetch alarms error' });
-  }
+    await db.execute(`INSERT INTO checkins (user_id, score, feedback, recommendations, date) VALUES (?, ?, ?, ?, ?)`,
+      [req.userId, score, feedback, JSON.stringify(recommendations), date]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Check-in save failed' }); }
+});
+
+app.get('/api/checkins', verifyToken, async (req, res) => {
+  const db = await getPool();
+  const [rows] = await db.execute(`SELECT *, DATE_FORMAT(date,'%Y-%m-%d') as date FROM checkins WHERE user_id = ? ORDER BY date DESC LIMIT 1`, [req.userId]);
+  res.json(rows);
+});
+
+// Alarms
+app.get('/api/alarms', verifyToken, async (req, res) => {
+  const db = await getPool();
+  const [rows] = await db.execute(`SELECT *, DATE_FORMAT(date,'%Y-%m-%d') as date FROM alarms WHERE user_id = ?`, [req.userId]);
+  res.json(rows);
 });
 
 app.post('/api/alarms', verifyToken, async (req, res) => {
-  try {
-    const { from_time, to_time, category, sound, date } = req.body;
-    const db = await getPool();
-    const [result] = await db.execute(`INSERT INTO alarms (user_id, from_time, to_time, category, sound, date) VALUES (?, ?, ?, ?, ?, ?)`, [req.userId, from_time, to_time, category, sound || 'bell', date]);
-    res.json({ id: result.insertId, ok: true });
-  } catch (err) { res.status(500).json({ error: 'Save alarm error' }); }
+  const { from_time, to_time, category, sound, date } = req.body;
+  const db = await getPool();
+  await db.execute(`INSERT INTO alarms (user_id, from_time, to_time, category, sound, date) VALUES (?,?,?,?,?,?)`, 
+    [req.userId, from_time, to_time, category, sound, date]);
+  res.json({ ok: true });
 });
 
-// ── Start ─────────────────────────────────────────────────
-initDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀  Quick Tracker server running on http://localhost:${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('❌  Could not connect to MySQL:', err.message);
-    process.exit(1);
-  });
+// ── Start ──
+initDB().then(() => {
+  app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));
+});

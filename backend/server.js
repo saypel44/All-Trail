@@ -119,6 +119,9 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'spttool.html'));
 });
 
+// Favicon route to avoid harmless 404s in browser console
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // AUTH ROUTES
 app.post('/api/signup', async (req, res) => {
   try {
@@ -151,7 +154,10 @@ app.get('/api/logs', verifyToken, async (req, res) => {
     const db = await getPool();
     const [rows] = await db.execute(`SELECT id, habit_name AS habitName, habit_icon AS habitIcon, DATE_FORMAT(date,'%Y-%m-%d') AS date, duration, unit, display_unit AS displayUnit, start_time AS startTime, end_time AS endTime, note FROM logs WHERE user_id = ? ORDER BY date DESC, id DESC`, [req.userId]);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: 'Fetch logs error' }); }
+  } catch (err) {
+    console.error('Fetch logs error:', err);
+    res.status(500).json({ error: 'Fetch logs error' });
+  }
 });
 
 app.post('/api/logs', verifyToken, async (req, res) => {
@@ -169,7 +175,10 @@ app.get('/api/alarms', verifyToken, async (req, res) => {
     const db = await getPool();
     const [rows] = await db.execute(`SELECT id, from_time, to_time, category, sound, DATE_FORMAT(date,'%Y-%m-%d') AS date FROM alarms WHERE user_id = ? ORDER BY from_time ASC`, [req.userId]);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: 'Fetch alarms error' }); }
+  } catch (err) {
+    console.error('Fetch alarms error:', err);
+    res.status(500).json({ error: 'Fetch alarms error' });
+  }
 });
 
 app.post('/api/alarms', verifyToken, async (req, res) => {

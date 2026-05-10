@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Quick Tracker</title>
+<title>ངེ་ Routine</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <script>
@@ -345,7 +346,7 @@
   <div class="auth-card">
     <div class="auth-top">
       <div class="auth-logo-wrap">
-        <img src="../logo.png" alt="SomPel Tech Logo" class="auth-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <img src="./logo.png" alt="SomPel Tech Logo" class="auth-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="auth-logo-fallback" style="display:none">
           <span>SPT</span>
         </div>
@@ -397,7 +398,6 @@
       <div class="app-logo-icon">
         <img src="../logo.png" alt="Logo" class="app-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="app-logo-spt-fallback" style="display:none">SPT</span>
       </div>
-      <span>ངེ་ Routine</span>
     </div>
     <div class="user-pill" onclick="openSettings()" title="Settings">
       <div class="user-avatar" id="hdr-avatar"></div>
@@ -417,7 +417,8 @@
   <div id="tab-check-in" class="tab-pane active">
     <div class="hero">
       <div class="hero-icon">
-        <img src="../logo.png" alt="Logo" class="hero-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="hero-logo-fallback" style="display:none">SPT</span>
+         <span>ངེ་ Routine</span>
+        <!-- <img src="../logo.png" alt="Logo" class="hero-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="hero-logo-fallback" style="display:none">SPT</span> -->
       </div>
       <h2>Hello, <span id="greeting-name"></span> 👋</h2>
       <p>What’s your day ? Get simple, gentle guidance made for you.</p>
@@ -806,7 +807,7 @@
 
     <!-- Avatar / info display -->
     <div class="settings-avatar-row">
-      <div class="settings-avatar" id="st-avatar"></div>
+      <!-- <div class="settings-avatar" id="st-avatar"></div> -->
       <div class="settings-avatar-info">
         <div class="settings-avatar-name" id="st-display-name"></div>
         <div class="settings-avatar-user" id="st-display-user"></div>
@@ -839,12 +840,6 @@
     </div>
 
     <div id="st-msg" class="auth-msg" style="margin:0 20px 4px"></div>
-
-    <!-- Save -->
-    <div class="settings-actions">
-      <button class="auth-btn" onclick="saveSettings()">💾 Save Changes</button>
-    </div>
-
     <!-- Sign out -->
     <div class="settings-signout">
       <button class="settings-signout-btn" onclick="doLogout()">↩ Sign out</button>
@@ -867,5 +862,7 @@
 </div>
 
 <script src="spttool.js" defer></script>
+<script src="api.js" defer></script>
+
 </body>
 </html>

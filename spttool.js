@@ -1821,92 +1821,155 @@ let _trendFocusKey = null;
    TODAY'S SNAPSHOT — interactive bar chart
 ═══════════════════════════════════════ */
 function buildTodaySnapshot(logs, byActivity, allDates, palette, activityKeys) {
-  // All DOM nodes already exist in index.html — just populate them.
-  const card      = document.getElementById('today-snapshot-card');
-  const dateLabel = document.getElementById('snap-date-label');
-  const barsWrap  = document.getElementById('snap-bars-wrap');
-  const totalRow  = document.getElementById('snap-total-row');
-  const filterLbl = document.getElementById('snap-filter-label');
-  const dd        = document.getElementById('snap-dropdown');
-  if (!card) return;
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  card.id = 'today-snapshot-card';
 
-  // Today's data
-  const todayISO   = new Date().toLocaleDateString('en-CA');
-  const todayLabel = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-  if (dateLabel) dateLabel.textContent = todayLabel;
+  // Get today's ISO date string
+  const todayISO = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
+  // Collect today's data per activity
   const todayItems = activityKeys.map((key, idx) => {
     const act = byActivity[key];
     const hrs = act.byDate[todayISO] || 0;
-    return { key, name: act.name, icon: act.icon, hrs, color: palette[idx % palette.length] };
+    const color = palette[idx % palette.length];
+    return { key, name: act.name, icon: act.icon, hrs, color };
   }).filter(it => it.hrs > 0);
 
+  // Also check if today has any data at all for a "no data today" state
   const hasTodayData = todayItems.length > 0;
-  card.style.display = ''; // make visible (was display:none in HTML)
 
-  // ── Render bars ──────────────────────────────────────────────
+  // Formatted today label
+  const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Compute max for bar scaling
+  const maxHrs = hasTodayData ? Math.max(...todayItems.map(it => it.hrs)) : 1;
+
+  // Build the snapshot header with hamburger to filter by habit
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="chart-title" style="margin-bottom:2px">📅 Today's Snapshot</div>
+        <div class="chart-sub" style="margin-bottom:0">${todayLabel}</div>
+      </div>
+      <div style="position:relative" id="snap-hamburger-wrap">
+        <button type="button" id="snap-hamburger-btn" style="padding:6px 11px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf);color:var(--text);cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px">
+          ☰ <span id="snap-filter-label">All habits</span>
+        </button>
+        <div id="snap-dropdown" style="position:absolute;top:calc(100% + 4px);right:0;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:150;min-width:170px;display:none;flex-direction:column;overflow:hidden"></div>
+      </div>
+    </div>
+    <div id="snap-bars-wrap" style="margin-top:14px"></div>
+    <div id="snap-total-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px"></div>`;
+
+  // Function to render bars (called on filter change)
   function renderBars(filterKey) {
+    const barsWrap = card.querySelector('#snap-bars-wrap');
+    const totalRow = card.querySelector('#snap-total-row');
+    const filterLabel = card.querySelector('#snap-filter-label');
+
     const items = filterKey ? todayItems.filter(it => it.key === filterKey) : todayItems;
 
-    if (filterLbl) {
-      const found = filterKey && todayItems.find(it => it.key === filterKey);
-      filterLbl.textContent = found ? found.icon + ' ' + found.name : 'All habits';
+    if (filterLabel) {
+      if (!filterKey) {
+        filterLabel.textContent = 'All habits';
+      } else {
+        const found = todayItems.find(it => it.key === filterKey);
+        filterLabel.textContent = found ? found.icon + ' ' + found.name : 'All habits';
+      }
     }
 
     if (!hasTodayData || items.length === 0) {
-      barsWrap.innerHTML = `
-        <div class="snap-empty">
-          <div class="snap-empty-icon">🌅</div>
-          <div>Nothing logged today yet.</div>
-          <div class="snap-empty-sub">Track activities in the Tracker tab to see them here.</div>
-        </div>`;
+      barsWrap.innerHTML = `<div style="text-align:center;padding:28px 16px;color:var(--hint);font-size:13px">
+        <div style="font-size:28px;margin-bottom:8px">🌅</div>
+        <div>Nothing logged today yet.</div>
+        <div style="font-size:11px;margin-top:4px">Track activities in the Tracker tab to see them here.</div>
+      </div>`;
       totalRow.innerHTML = '';
       return;
     }
 
     const localMax = Math.max(...items.map(it => it.hrs));
-    barsWrap.innerHTML = items.map(it => {
-      const pct        = localMax > 0 ? (it.hrs / localMax) * 100 : 0;
-      const barPct     = Math.max(pct, 3);
-      const displayHrs = it.hrs >= 1 ? it.hrs.toFixed(1) + ' h' : Math.round(it.hrs * 60) + ' m';
-      return `
-        <div class="snap-bar-row" style="margin-bottom:11px">
-          <div class="snap-bar-header">
-            <span class="snap-bar-name">${it.icon} ${it.name}</span>
-            <span class="snap-bar-value" style="color:${it.color}">${displayHrs}</span>
+    let html = '';
+    items.forEach(it => {
+      const pct = localMax > 0 ? (it.hrs / localMax) * 100 : 0;
+      const displayHrs = it.hrs >= 1
+        ? it.hrs.toFixed(1) + ' h'
+        : Math.round(it.hrs * 60) + ' m';
+      const barPct = Math.max(pct, 3); // min 3% so bar is always visible
+      html += `
+        <div class="snap-bar-row" data-key="${it.key}" style="margin-bottom:11px;cursor:pointer" title="Click to focus in Activity Trends">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:600;color:var(--text)">${it.icon} ${it.name}</span>
+            <span style="font-size:11px;font-weight:700;color:${it.color}">${displayHrs}</span>
           </div>
-          <div class="snap-bar-track">
-            <div class="snap-bar-fill" style="width:${barPct.toFixed(1)}%;background:${it.color}">
-              <div class="snap-bar-gloss"></div>
+          <div style="background:var(--surf2);border-radius:6px;height:10px;overflow:hidden;position:relative">
+            <div class="snap-bar-fill" style="
+              height:100%;
+              width:${barPct.toFixed(1)}%;
+              background:${it.color};
+              border-radius:6px;
+              transition:width .5s cubic-bezier(.4,0,.2,1);
+              position:relative;
+            ">
+              <div style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 60%,rgba(255,255,255,0.18));border-radius:6px"></div>
             </div>
           </div>
         </div>`;
-    }).join('');
+    });
+    barsWrap.innerHTML = html;
 
-    const totalHrs   = items.reduce((s, it) => s + it.hrs, 0);
-    const totalDisp  = totalHrs >= 1 ? totalHrs.toFixed(1) + ' hrs' : Math.round(totalHrs * 60) + ' min';
+    // Total row
+    const totalHrs = items.reduce((s, it) => s + it.hrs, 0);
+    const totalDisplay = totalHrs >= 1 ? totalHrs.toFixed(1) + ' hrs' : Math.round(totalHrs * 60) + ' min';
+    const actCount = items.length;
     totalRow.innerHTML = `
-      <span class="snap-total-count">${items.length} activit${items.length === 1 ? 'y' : 'ies'} logged today</span>
-      <span class="snap-total-value">Total: ${totalDisp}</span>`;
+      <span style="font-size:11px;color:var(--hint)">${actCount} activit${actCount === 1 ? 'y' : 'ies'} logged today</span>
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Total: ${totalDisplay}</span>`;
+
+    // Wire bar-row clicks → focus Activity Trends chart
+    barsWrap.querySelectorAll('.snap-bar-row').forEach(row => {
+      row.addEventListener('mouseenter', () => { row.style.opacity = '0.8'; });
+      row.addEventListener('mouseleave', () => { row.style.opacity = '1'; });
+      row.addEventListener('click', () => {
+        const k = row.dataset.key;
+        // Scroll to trends chart and focus
+        if (typeof _trendFocusKey !== 'undefined') {
+          // applyFocus is scoped inside renderTrends, so we toggle via a custom event
+          document.dispatchEvent(new CustomEvent('snapshot-focus', { detail: { key: k } }));
+          // Smooth-scroll to activity trends card
+          const trendCard = document.querySelector('#chart-combined-trends');
+          if (trendCard) trendCard.closest('.chart-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
   }
 
-  // ── Populate dropdown ────────────────────────────────────────
+  // Build dropdown
   function buildDropdown() {
+    const dd = card.querySelector('#snap-dropdown');
     dd.innerHTML = '';
+
+    // All option
     const allBtn = document.createElement('button');
     allBtn.type = 'button';
     allBtn.textContent = '🗂 All habits';
-    allBtn.className = 'snap-dd-item snap-dd-item--all';
-    allBtn.onclick = () => { renderBars(null); dd.style.display = 'none'; };
+    allBtn.style.cssText = 'padding:10px 14px;text-align:left;border:none;background:var(--green-lt);color:var(--text);cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);transition:background .15s';
+    allBtn.onmouseover = () => allBtn.style.background = 'var(--green-lt)';
+    allBtn.onmouseout = () => allBtn.style.background = 'var(--green-lt)';
+    allBtn.onclick = () => { renderBars(null); dd.style.display = 'none'; buildDropdown(); };
     dd.appendChild(allBtn);
 
-    activityKeys.forEach((key) => {
+    // Per-activity (use all logged activities, not just today)
+    activityKeys.forEach((key, idx) => {
       const act = byActivity[key];
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = act.icon + ' ' + act.name;
-      btn.className = 'snap-dd-item';
-      btn.onclick = () => { renderBars(key); dd.style.display = 'none'; };
+      btn.style.cssText = 'padding:10px 14px;text-align:left;border:none;background:transparent;color:var(--text);cursor:pointer;font-size:13px;transition:background .15s';
+      btn.onmouseover = () => btn.style.background = 'var(--green-lt)';
+      btn.onmouseout = () => btn.style.background = 'transparent';
+      btn.onclick = () => { renderBars(key); dd.style.display = 'none'; buildDropdown(); };
       dd.appendChild(btn);
     });
   }
@@ -1914,24 +1977,26 @@ function buildTodaySnapshot(logs, byActivity, allDates, palette, activityKeys) {
   buildDropdown();
   renderBars(null);
 
-  // ── Hamburger toggle ─────────────────────────────────────────
-  const hamburgerBtn = document.getElementById('snap-hamburger-btn');
-  if (hamburgerBtn) {
-    // Remove any old listener by cloning
-    const fresh = hamburgerBtn.cloneNode(true);
-    hamburgerBtn.replaceWith(fresh);
-    fresh.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dd.style.display = dd.style.display === 'none' ? 'flex' : 'none';
-    });
-  }
+  // Hamburger toggle
+  setTimeout(() => {
+    const btn = card.querySelector('#snap-hamburger-btn');
+    const dd = card.querySelector('#snap-dropdown');
+    if (btn && dd) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dd.style.display = dd.style.display === 'none' ? 'flex' : 'none';
+      });
+      const closeSnap = (e) => {
+        const wrap = card.querySelector('#snap-hamburger-wrap');
+        if (wrap && !wrap.contains(e.target)) dd.style.display = 'none';
+      };
+      if (window._snapDropdownListener) document.removeEventListener('click', window._snapDropdownListener);
+      window._snapDropdownListener = closeSnap;
+      document.addEventListener('click', closeSnap);
+    }
+  }, 0);
 
-  if (window._snapDropdownListener) document.removeEventListener('click', window._snapDropdownListener);
-  window._snapDropdownListener = (e) => {
-    const wrap = document.getElementById('snap-hamburger-wrap');
-    if (wrap && !wrap.contains(e.target)) dd.style.display = 'none';
-  };
-  document.addEventListener('click', window._snapDropdownListener);
+  return card;
 }
 
 async function renderTrends(){
@@ -2070,8 +2135,9 @@ async function renderTrends(){
     </div>
     <div class="trend-acts-grid" id="trend-acts-grid" style="margin-top:16px">${buildBadgesHTML(_trendFocusKey)}</div>`;
 
-  /* ── 📅 TODAY'S SNAPSHOT — populates static card in index.html ── */
-  buildTodaySnapshot(ud.logs, byActivity, allDates, TREND_PALETTE, activityKeys);
+  /* ── 📅 TODAY'S SNAPSHOT — insert before Activity Trends ── */
+  const snapshotCard = buildTodaySnapshot(ud.logs, byActivity, allDates, TREND_PALETTE, activityKeys);
+  content.appendChild(snapshotCard);
 
   content.appendChild(card);
   
@@ -2220,6 +2286,17 @@ async function renderTrends(){
     /* Wire clear-focus button if focus is already active */
     const clearBtn = document.getElementById('trend-clear-focus');
     if(clearBtn) clearBtn.addEventListener('click', e=>{ e.stopPropagation(); applyFocus(null); });
+
+    /* Wire snapshot-focus custom event so clicking a bar in Today's Snapshot
+       focuses the corresponding trendline in Activity Trends */
+    if (window._snapshotFocusListener) {
+      document.removeEventListener('snapshot-focus', window._snapshotFocusListener);
+    }
+    window._snapshotFocusListener = (e) => {
+      const k = e.detail && e.detail.key;
+      if (k) applyFocus(_trendFocusKey === k ? null : k);
+    };
+    document.addEventListener('snapshot-focus', window._snapshotFocusListener);
 
   },50);
 
@@ -2542,11 +2619,6 @@ function renderHistory() {
     window._historyDropdownListener = closeDropdown;
   }, 0);
 
-  const todayISO = new Date().toISOString().split('T')[0];
-  const yesterdayISO = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  const dayBeforeISO = new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0];
-  const allowedDates = new Set([todayISO, yesterdayISO, dayBeforeISO]);
-
   const logs = ud.logs
     .filter(l => !l.isQuickAlarm && (historyFilter === 'all' || l.habitId === historyFilter))
     .slice()
@@ -2559,25 +2631,14 @@ function renderHistory() {
     byDate[dateKey].push(l);
   });
 
-  // Separate: visible dates (today, yesterday, day-before, future) vs locked (older)
-  const allSortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
-  const visibleDates = allSortedDates.filter(d => d >= todayISO || allowedDates.has(d));
-  const lockedDates  = allSortedDates.filter(d => d < dayBeforeISO);
-
   content.innerHTML = '';
 
-  // ── Render visible dates ──
-  visibleDates.forEach(dateStr => {
+  Object.keys(byDate).sort((a,b) => b.localeCompare(a)).forEach(dateStr => {
     const heading = document.createElement('div');
     const d = new Date(dateStr + 'T12:00:00');
-    const isToday     = dateStr === todayISO;
-    const isYesterday = dateStr === yesterdayISO;
-    const isFuture    = dateStr > todayISO;
-    const label = isToday ? 'Today'
-      : isYesterday ? 'Yesterday'
-      : isFuture    ? '📅 ' + d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'})
-      : d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
-
+    const isToday = dateStr === new Date().toISOString().split('T')[0];
+    const isYesterday = dateStr === new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const label = isToday ? 'Today' : isYesterday ? 'Yesterday' : d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
     heading.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 0 8px;border-top:.5px solid var(--border);margin-top:4px';
     const title = document.createElement('div');
     title.style.cssText = 'font-size:11px;font-weight:600;color:var(--hint);letter-spacing:.07em;text-transform:uppercase;';
@@ -2612,41 +2673,6 @@ function renderHistory() {
       content.appendChild(item);
     });
   });
-
-  // ── Paywall banner (only if there are older logs) ──
-  if (lockedDates.length > 0) {
-    const totalLocked = lockedDates.reduce((n, d) => n + byDate[d].length, 0);
-
-    const banner = document.createElement('div');
-    banner.className = 'history-paywall';
-    banner.innerHTML = `
-      <div class="history-paywall-blur">
-        ${lockedDates.slice(0, 2).map(dateStr => {
-          const d = new Date(dateStr + 'T12:00:00');
-          const label = d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
-          return `
-            <div class="history-paywall-ghost-day">
-              <div class="history-paywall-ghost-label">${label}</div>
-              ${byDate[dateStr].slice(0, 2).map(() => `<div class="history-paywall-ghost-item"></div>`).join('')}
-            </div>`;
-        }).join('')}
-        <div class="history-paywall-overlay"></div>
-      </div>
-      <div class="history-paywall-card">
-        <div class="history-paywall-lock">🔒</div>
-        <div class="history-paywall-title">Full history is a Pro feature</div>
-        <div class="history-paywall-sub">You're viewing the last 3 days. Upgrade to unlock <strong>${totalLocked} older log${totalLocked !== 1 ? 's' : ''}</strong> across ${lockedDates.length} day${lockedDates.length !== 1 ? 's' : ''}.</div>
-        <ul class="history-paywall-perks">
-          <li>📆 Unlimited history access</li>
-          <li>📊 Full trend analysis & export</li>
-          <li>💡 Personalised weekly insights</li>
-          <li>🔔 Advanced scheduling & reminders</li>
-        </ul>
-        <button class="history-paywall-btn" onclick="alert('Pro upgrade coming soon! Stay tuned. 🚀')">Upgrade to Pro →</button>
-        <div class="history-paywall-note">Free plan includes today + last 2 days</div>
-      </div>`;
-    content.appendChild(banner);
-  }
 }
 
 function _renderActivitySummary(container, ud) {

@@ -2,8 +2,24 @@
    STATE  –  persisted via localStorage
 ═══════════════════════════════════════ */
 
-// const API =""
-const API_BASE = 'https://nge-routine-backend.onrender.com';
+// const API = 'https://abc123.ngrok-free.app/api';
+// const API = 'https://contort-schematic-cameo.ngrok-free.dev/api';
+// const API = 'https://ngeroutinetool-pcmphk0l.b4a.run/api';
+
+// const API = 'https://ngeroutinetool-wvl7srve.b4a.run/api';
+
+// const API = 'https://ngeroutinetool.onrender.com/api';
+
+// const response = await fetch(`${API}/your-endpoint`, {
+//   method: 'POST',
+//   headers: {
+//     'Content-Type': 'application/json',
+//     'ngrok-skip-browser-warning': 'true'  // ← add this line
+//   },
+//   body: JSON.stringify(data)
+// });
+
+const API_BASE = 'https://ngeroutinetool-production.up.railway.app/api';
 
 let currentUser = null;
 let currentAlarmHabit = null;
@@ -31,6 +47,7 @@ function getUserData() {
       _currentData = { logs:[], alarms:{}, habitEnabled:{}, selectedSounds:{}, customSounds:{}, checkInHistory:[], quickAlarms:[] };
     }
     if (!_currentData.quickAlarms) _currentData.quickAlarms = [];
+    normalizeLogDates(_currentData);
   }
   return _currentData;
 }
@@ -38,6 +55,34 @@ function getUserData() {
 function saveUserData() {
   if (!currentUser || !_currentData) return;
   localStorage.setItem('qt_data_' + currentUser.username, JSON.stringify(_currentData));
+}
+
+function normalizeDateValue(value) {
+  if (!value) return '';
+  if (typeof value !== 'string') {
+    const parsed = new Date(value);
+    if (!isNaN(parsed)) value = parsed.toISOString();
+    else return '';
+  }
+  const datePart = value.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+  const parsed = new Date(value);
+  return !isNaN(parsed) ? parsed.toISOString().split('T')[0] : '';
+}
+
+function normalizeLogDates(ud) {
+  if (!ud || !Array.isArray(ud.logs)) return;
+  let changed = false;
+  ud.logs.forEach(l => {
+    if (l && l.date) {
+      const normalized = normalizeDateValue(l.date);
+      if (normalized && l.date !== normalized) {
+        l.date = normalized;
+        changed = true;
+      }
+    }
+  });
+  if (changed) saveUserData();
 }
 
 /* ═══════════════════════════════════════
@@ -68,28 +113,69 @@ function togglePw(id, btn) {
   inp.type = inp.type === 'password' ? 'text' : 'password';
   btn.textContent = inp.type === 'password' ? '👁' : '🙈';
 }
-function doSignup() {
+// 
+
+// ── Replace these two functions in spttool.js ──
+
+
+async function doSignup() {
   const name = document.getElementById('su-name').value.trim();
   const user = document.getElementById('su-user').value.trim().toLowerCase();
   const pass = document.getElementById('su-pass').value;
   if (!name || !user || !pass) return showMsg('su-msg', 'Please fill in all fields.', 'err');
-  if (user.length < 3) return showMsg('su-msg', 'Username must be at least 3 characters.', 'err');
-  if (pass.length < 6) return showMsg('su-msg', 'Password must be at least 6 characters.', 'err');
-  const users = _loadUsers();
-  if (users[user]) return showMsg('su-msg', 'That username is already taken.', 'err');
-  users[user] = { name, pass, joinedAt: new Date().toISOString(), lastChanged: null };
-  _saveUsers(users);
-  showMsg('su-msg', 'Account created! Signing you in…', 'ok');
-  setTimeout(() => launchApp({ username: user, name }), 900);
+
+  try {
+    const r = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      // headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify({ username: user, password: pass, full_name: name })
+    });
+    const data = await r.json();
+    if (!r.ok) return showMsg('su-msg', data.error || 'Signup failed.', 'err');
+    
+    // Save user data locally for password reset fallback
+    const users = _loadUsers();
+    users[user] = { name: name, pass: pass };
+    _saveUsers(users);
+    
+    localStorage.setItem('qt_token', data.token);
+    showMsg('su-msg', 'Account created! Signing you in…', 'ok');
+    setTimeout(() => launchApp({ username: data.user.username, name: data.user.name }), 900)
+  } catch {
+    showMsg('su-msg', 'Network error. Please try again.', 'err');
+  }
 }
-function doLogin() {
+
+async function doLogin() {
   const user = document.getElementById('li-user').value.trim().toLowerCase();
   const pass = document.getElementById('li-pass').value;
   if (!user || !pass) return showMsg('li-msg', 'Please enter your username and password.', 'err');
-  const users = _loadUsers();
-  if (!users[user] || users[user].pass !== pass) return showMsg('li-msg', 'Incorrect username or password.', 'err');
-  launchApp({ username: user, name: users[user].name });
+
+  try {
+    const r = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      // headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    const data = await r.json();
+    if (!r.ok) return showMsg('li-msg', data.error || 'Login failed.', 'err');
+    
+    // Save user info locally for reference (no password for security)
+    const users = _loadUsers();
+    if (!users[user]) {
+      users[user] = { name: data.user.name }; // Don't store password
+      _saveUsers(users);
+    }
+    
+    localStorage.setItem('qt_token', data.token);
+    launchApp({ username: data.user.username, name: data.user.name });
+  } catch {
+    showMsg('li-msg', 'Network error. Please try again.', 'err');
+  }
 }
+
 function launchApp(user) {
   currentUser = user;
   _currentData = null; // clear cache so getUserData() re-loads from storage fresh
@@ -221,7 +307,7 @@ function toggleForgotPanel() {
     fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
   }
 }
-function doResetPassword() {
+async function doResetPassword() {
   const userId  = document.getElementById('fp-user').value.trim().toLowerCase();
   const newPass = document.getElementById('fp-new-pass').value;
   const confirm = document.getElementById('fp-confirm-pass').value;
@@ -232,22 +318,64 @@ function doResetPassword() {
   if (newPass.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.className = 'auth-msg err'; return; }
   if (newPass !== confirm) { msg.textContent = 'Passwords do not match.'; msg.className = 'auth-msg err'; return; }
 
-  const users = _loadUsers();
-  if (!users[userId]) { msg.textContent = 'No account found with that User ID.'; msg.className = 'auth-msg err'; return; }
+  // Try API first, fall back to local storage if API fails
+  let apiFailed = false;
+  try {
+    const r = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify({ username: userId, new_password: newPass })
+    });
+    const data = await r.json();
+    if (r.ok) {
+      msg.textContent = '✓ Password reset! You can now sign in.';
+      msg.className   = 'auth-msg ok';
+      // Pre-fill sign-in and close panel after short delay
+      setTimeout(() => {
+        document.getElementById('li-user').value = userId;
+        document.getElementById('li-pass').value = '';
+        document.getElementById('forgot-panel').style.display = 'none';
+        const fpMsg = document.getElementById('fp-msg');
+        fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
+      }, 1800);
+      return;
+    }
+    // If API returns user not found, don't fall back to local
+    if (data.error && data.error.toLowerCase().includes('not found')) {
+      msg.textContent = 'No account found with that User ID.';
+      msg.className = 'auth-msg err';
+      return;
+    }
+    // Other API errors, fall back to local storage
+    apiFailed = true;
+  } catch {
+    // Network error, fall back to local storage
+    apiFailed = true;
+  }
 
-  users[userId].pass = newPass;
-  _saveUsers(users);
+  if (apiFailed) {
+    // Fallback: local storage method
+    const users = _loadUsers();
+    if (!users[userId]) { 
+      msg.textContent = 'No account found with that User ID. Please check your User ID or contact support.';
+      msg.className = 'auth-msg err'; 
+      return; 
+    }
 
-  msg.textContent = '✓ Password reset! You can now sign in.';
-  msg.className   = 'auth-msg ok';
-  // Pre-fill sign-in and close panel after short delay
-  setTimeout(() => {
-    document.getElementById('li-user').value = userId;
-    document.getElementById('li-pass').value = '';
-    document.getElementById('forgot-panel').style.display = 'none';
-    const fpMsg = document.getElementById('fp-msg');
-    fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
-  }, 1800);
+    users[userId].pass = newPass;
+    _saveUsers(users);
+
+    msg.textContent = '✓ Password reset! You can now sign in.';
+    msg.className   = 'auth-msg ok';
+    // Pre-fill sign-in and close panel after short delay
+    setTimeout(() => {
+      document.getElementById('li-user').value = userId;
+      document.getElementById('li-pass').value = '';
+      document.getElementById('forgot-panel').style.display = 'none';
+      const fpMsg = document.getElementById('fp-msg');
+      fpMsg.className = 'auth-msg'; fpMsg.textContent = '';
+    }, 1800);
+  }
 }
 
 
@@ -673,35 +801,106 @@ function buildLocalFeedback(a, la, sc) {
      2. ONE THING TO WORK ON
      — specific, kind, no inline citation
   ══════════════════════════════════ */
-  let areaOfImprovement = '';
+  // let areaOfImprovement = '';
+  // if (highPhone && (outcomePoor || !feelRested)) {
+  //   track('statcan');
+  //   areaOfImprovement = `Continuous screen time without breaks may lead to eye strain, fatigue, and reduced focus. Taking regular breaks from screens every 30 minutes can help protect your vision and mental clarity.`;
+  // } else if (medPhone && outcomePoor) {
+  //   track('statcan');
+  //   areaOfImprovement = `Using your phone ${phone} before bed is likely making your sleep lighter. Cutting that down even by 30 minutes can make a real difference to how rested you feel.`;
+  // } else if (shortSleep && outcomePoor) {
+  //   track('aasm');
+  //   areaOfImprovement = `Sleeping less than 7 hours may increase the risk of stroke, poor health, and early death. Maintaining healthy sleep habits supports better physical and mental well-being.`;
+  // } else if (overwork && outcomePoor) {
+  //   track('springer');
+  //   areaOfImprovement = `Working ${workhours} a day makes it hard for your body to switch off at night. Try stopping all work at least 1 hour before bed even a short walk helps your body wind down.`;
+  // } else if (lateNight && outcomePoor) {
+  //   track('guardian');
+  //   areaOfImprovement = `Going to bed ${bedtime} is quite late. Your body sleeps best within a regular window. Try shifting your bedtime just 15 minutes earlier each week.`;
+  // } else if (hardSleep) {
+  //   track('statcan');
+  //   areaOfImprovement = `You find it hard to fall asleep. Your brain needs a signal that it's time to rest. Try a calm, screen-free wind-down for 20 minutes before bed do reading, stretching, or just dim lights.`;
+  // } else if (highPhone && outcomeGood) {
+  //   track('statcan');
+  //   areaOfImprovement = `Even though you feel okay, more hours of screen time can still affect your eyes and focus over time. Continuous screen time without breaks may lead to eye strain, fatigue, and reduced focus. Taking regular breaks helps protect your long-term health.`;
+  // } else if (longSleep && !feelEnergy) {
+  //   track('springer');
+  //   areaOfImprovement = `Sleeping more than 9 hours may increase the risk of stroke, poor health, and early death. Maintaining healthy sleep habits supports better physical and mental well-being.`;
+  // } else {
+  //   track('guardian');
+  //   areaOfImprovement = `Try going to bed and waking up at the same time every day even on weekends. It's one of the simplest habits that makes a real difference.`;
+  // }
+  const improvements = [];
+
   if (highPhone && (outcomePoor || !feelRested)) {
     track('statcan');
-    areaOfImprovement = `You use your phone ${phone} before bed. Phone screens trick your brain into thinking it's still daytime  making it harder to fall into deep sleep, even if you don't notice it.`;
-  } else if (medPhone && outcomePoor) {
-    track('statcan');
-    areaOfImprovement = `Using your phone ${phone} before bed is likely making your sleep lighter. Cutting that down even by 30 minutes can make a real difference to how rested you feel.`;
-  } else if (shortSleep && outcomePoor) {
-    track('aasm');
-    areaOfImprovement = `You sleep ${sleep} most nights. Your body needs more time to repair and recharge. Even one extra hour of sleep can noticeably improve your energy and mood.`;
-  } else if (overwork && outcomePoor) {
-    track('springer');
-    areaOfImprovement = `Working ${workhours} a day makes it hard for your body to switch off at night. Try stopping all work at least 1 hour before bed even a short walk helps your body wind down.`;
-  } else if (lateNight && outcomePoor) {
-    track('guardian');
-    areaOfImprovement = `Going to bed ${bedtime} is quite late. Your body sleeps best within a regular window. Try shifting your bedtime just 15 minutes earlier each week.`;
-  } else if (hardSleep) {
-    track('statcan');
-    areaOfImprovement = `You find it hard to fall asleep. Your brain needs a signal that it's time to rest. Try a calm, screen-free wind-down for 20 minutes before bed do reading, stretching, or just dim lights.`;
-  } else if (highPhone && outcomeGood) {
-    track('statcan');
-    areaOfImprovement = `You feel okay now, but ${phone} of phone use before bed is slowly affecting your sleep depth. Moving phone time earlier in the evening is the easiest win.`;
-  } else if (longSleep && !feelEnergy) {
-    track('springer');
-    areaOfImprovement = `You sleep ${sleep} but still feel low on energy. More hours in bed isn't always the fix — sleep quality matters too. A consistent bedtime and less screen time can help.`;
-  } else {
-    track('guardian');
-    areaOfImprovement = `Try going to bed and waking up at the same time every day even on weekends. It's one of the simplest habits that makes a real difference.`;
+    improvements.push(`Continuous screen time without breaks may lead to eye strain, fatigue, and reduced focus. Taking regular breaks from screens every 30 minutes can help protect your vision and mental clarity.`);
   }
+  if (medPhone && outcomePoor) {
+    track('statcan');
+    improvements.push(`Using your phone ${phone} before bed is likely making your sleep lighter. Cutting that down even by 30 minutes can make a real difference to how rested you feel.`);
+  }
+  if (shortSleep && outcomePoor) {
+    track('aasm');
+    improvements.push(`Sleeping less than 7 hours may increase the risk of stroke, poor health, and early death. Maintaining healthy sleep habits supports better physical and mental well-being.`);
+  }
+  if (shortSleep && outcomeGood) {  // ← polite version when they feel fine
+    track('aasm');
+    improvements.push(`That's great that you're feeling good! Though sleeping less than 7 hours can still carry risks over time. Research links it to increased chances of stroke, poor health, and early death. It may be worth gradually working toward 7–8 hours to protect your long-term well-being.`);
+  }
+  if (overwork && outcomePoor) {
+    track('springer');
+    improvements.push(`Working ${workhours} a day makes it hard for your body to switch off at night. Researcch suggest that working for longer hours increase the risk of stroke, heart disease, stress, fatigue, and long-term health complications.
+      
+    Try stopping all work at least 1 hour before bed even a short walk helps your body wind down.`);
+  }
+  if (overwork && outcomeGood) {  // ← polite version when they feel fine
+    track('springer');
+    improvements.push(`It's great you're feeling okay! That said, working ${workhours} a day can still quietly wear on your body over time. 
+      
+    Research suggests long working hours affect sleep quality and also increase the risk of stroke, heart disease, stress, fatigue, and long-term health complications. 
+    
+    Winding down at least 1 hour before bed can help protect you long term.`);
+  }
+  if (lateNight && outcomePoor) {
+    track('guardian');
+    improvements.push(`Going to bed ${bedtime} is quite late. Your body sleeps best within a regular window. Try shifting your bedtime just 15 minutes earlier each week.`);
+  }
+
+  if (bedtime === '9–10 pm') {
+  improvements.push(`Great timing! Going to bed between 9–10 PM lets your body follow its natural rhythm where melatonin rises and your body starts preparing for deep sleep right on schedule.`);
+  } else if (bedtime === '10–11 pm') {
+    improvements.push(`Sleeping between 10–11 PM is a solid window. Your growth hormone activates and tissue repair begins around 10 PM, so you're giving your body the recovery time it needs.`);
+  } else if (bedtime === '11 pm–midnight') {
+    improvements.push(`Going to bed between 11 PM–midnight means you may be missing the liver detox and energy restoration phase that peaks around 11 PM. Try shifting your bedtime a little earlier.`);
+  } else if (bedtime === 'After midnight') {
+    improvements.push(`Going to bed after midnight means your brain misses its key toxin-clearing and memory processing window around 12 AM, and you may be cutting into your deepest recovery sleep at 1–2 AM. Even shifting 30 minutes earlier can help your body catch up.`);
+  }
+
+
+  if (hardSleep) {
+    track('statcan');
+    improvements.push(`You find it hard to fall asleep. Your brain needs a signal that it's time to rest. Try a calm, screen-free wind-down for 20 minutes before bed do reading, stretching, or just dim lights.`);
+  }
+  if (highPhone && outcomeGood) {
+    track('statcan');
+    improvements.push(`Even though you feel okay, more hours of screen time can still affect your eyes and focus over time. Continuous screen time without breaks may lead to eye strain, fatigue, and reduced focus. Taking regular breaks helps protect your long-term health.`);
+  }
+  if (longSleep && !feelEnergy) {
+    track('springer');
+    improvements.push(`Sleeping more than 9 hours may increase the risk of stroke, poor health, and early death. Maintaining healthy sleep habits supports better physical and mental well-being.`);
+  }
+  if (longSleep && feelEnergy) {  // ← polite version when they feel fine
+    track('springer');
+    improvements.push(`Glad you're feeling energised! Even so, consistently sleeping more than 9 hours has been linked to increased health risks including stroke and poor long-term health. It may be worth checking in with a doctor if long sleep is a regular pattern for you.`);
+  }
+
+  if (improvements.length === 0) {
+    track('guardian');
+    improvements.push(`Try going to bed and waking up at the same time every day even on weekends. It's one of the simplest habits that makes a real difference.`);
+  }
+
+  const areaOfImprovement = improvements.join('<br><br>');
 
   /* ══════════════════════════════════
      3. YOUR 3 STEPS  (replaces research bullets + 8-8-8 actions)
@@ -716,7 +915,7 @@ function buildLocalFeedback(a, la, sc) {
 
   if (noPhone)              { track('statcan'); actions.push(`📵 Keep your phone away before bed, that habit is working`); }
   else if (lowPhone)        { track('statcan'); actions.push(`📵 Try cutting your pre-bed phone time from ${phone} to under 30 minutes`); }
-  else if (medPhone||highPhone) { track('statcan'); actions.push(`📵 Avoid using your phone or other screens during the final 30 minutes before sleeping because screens can make it harder to fall asleep.`); }
+  else if (medPhone||highPhone) { track('statcan'); actions.push(`📵 Take a 10-minute screen break every 30 minutes to reduce eye strain and improve focus. Continuous screen time without breaks can lead to fatigue and reduced productivity.`); }
   else                      {                   actions.push(`📵 Put your phone away 30 minutes before you sleep`); }
 
   if (lateNight)      { track('guardian'); actions.push(`🌙 Try sleeping 15 minutes earlier each week, small changes are easier to maintain.`); }
@@ -732,7 +931,7 @@ function buildLocalFeedback(a, la, sc) {
   if (outcomeGood) {
     gentleReminder = `You're already doing the important things right, consistency is all you need to keep feeling this good.`;
   } else if (highPhone) {
-    gentleReminder = `You don't need to stop using your phone, just move it earlier in your evening. One small shift, big result.`;
+    gentleReminder = `More hours of screen time without breaks can lead to eye strain and fatigue. Short breaks every 30 minutes make a real difference to how you feel.`;
   } else if (shortSleep) {
     gentleReminder = `Small gradual changes are easier and more effective than sudden big changes.`;
   } else if (overwork) {
@@ -926,6 +1125,7 @@ function updateDiff(hId){
 
 function buildHabitCards(){
   const wrap=document.getElementById('habit-cards-wrap');
+  if(!wrap) return;
   wrap.innerHTML='';
   const ud=getUserData();
   if(!ud) return;
@@ -1073,37 +1273,54 @@ function uploadSound(habitId,input){
 
 /* setAlarm replaced by setAlarmAmPm above */
 
-function logHabit(id){
-  const ud=getUserData();if(!ud)return;
-  const dur=parseFloat(document.getElementById('dur-'+id).value)||0;
-  const startT=getAmPmVal(`log-${id}-start`);
-  const endT=getAmPmVal(`log-${id}-end`);
-  const note=document.getElementById('note-'+id).value;
-  const habit=HABITS.find(h=>h.id===id);
-  if(!dur&&!startT){alert('Please enter a duration or start time.');return;}
-  const entry={
-    id:Date.now(),
-    habitId:id,
-    habitName:habit.name,
-    habitIcon:habit.icon,
-    date:new Date().toISOString().split('T')[0],
-    duration:dur,
-    unit:habit.unit,
-    startTime:startT,
-    endTime:endT,
+async function logHabit(id) {
+  const ud = getUserData(); if (!ud) return;
+  const dur = parseFloat(document.getElementById('dur-' + id).value) || 0;
+  const startT = getAmPmVal(`log-${id}-start`);
+  const endT = getAmPmVal(`log-${id}-end`);
+  const note = document.getElementById('note-' + id).value;
+  const habit = HABITS.find(h => h.id === id);
+  if (!dur && !startT) { alert('Please enter a duration or start time.'); return; }
+
+  const entry = {
+    id: Date.now(),
+    habitId: id,
+    habitName: habit.name,
+    habitIcon: habit.icon,
+    date: new Date().toISOString().split('T')[0],
+    duration: dur,
+    unit: habit.unit,
+    startTime: startT,
+    endTime: endT,
     note
   };
+
+  // Save locally as before
   ud.logs.push(entry);
   saveUserData();
-  document.getElementById('dur-'+id).value='';
-  document.getElementById('note-'+id).value='';
-  const btn=document.querySelector(`#habit-card-${id} .log-btn`);
-  if(btn){const orig=btn.textContent;btn.textContent='✅ Saved!';btn.style.background='var(--green-dk)';setTimeout(()=>{btn.textContent=orig;btn.style.background='';},1500);}
+
+  // Also save to backend
+  
+  if (token) {
+    fetch(`${API_BASE}/habits/logs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+        'ngrok-skip-browser-warning': 'true'
+      },
+      body: JSON.stringify(entry)
+    }).catch(e => console.warn('Log sync failed', e));
+  }
+
+  document.getElementById('dur-' + id).value = '';
+  document.getElementById('note-' + id).value = '';
+  const btn = document.querySelector(`#habit-card-${id} .log-btn`);
+  if (btn) { const orig = btn.textContent; btn.textContent = '✅ Saved!'; btn.style.background = 'var(--green-dk)'; setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1500); }
   renderCalendar();
   renderTrends();
   renderHistory();
 }
-
 /* ═══════════════════════════════════════
    ALARM WATCHER
 ═══════════════════════════════════════ */
@@ -1221,7 +1438,7 @@ function renderCalendar(){
   const logDates=new Set(ud?ud.logs.map(l=>l.date):[]);
   const futureDates=new Set([...logDates].filter(d=>d>todayStr));
 
-  for(let i=0;i<first;i++){
+  for(let i=0;i<first;i++){const token = localStorage.getItem('qt_token');
     const prev=new Date(calYear,calMonth,-(first-i-1));
     const el=document.createElement('div');
     el.className='cal-day other-month';
@@ -1600,14 +1817,234 @@ const TREND_PALETTE=[
 /* Track which activity is currently focused (null = show all) */
 let _trendFocusKey = null;
 
-function renderTrends(){
+/* ═══════════════════════════════════════
+   TODAY'S SNAPSHOT — interactive bar chart
+═══════════════════════════════════════ */
+function buildTodaySnapshot(logs, byActivity, allDates, palette, activityKeys) {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  card.id = 'today-snapshot-card';
+
+  // Get today's ISO date string
+  const todayISO = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+  // Collect today's data per activity
+  const todayItems = activityKeys.map((key, idx) => {
+    const act = byActivity[key];
+    const hrs = act.byDate[todayISO] || 0;
+    const color = palette[idx % palette.length];
+    return { key, name: act.name, icon: act.icon, hrs, color };
+  }).filter(it => it.hrs > 0);
+
+  // Also check if today has any data at all for a "no data today" state
+  const hasTodayData = todayItems.length > 0;
+
+  // Formatted today label
+  const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Compute max for bar scaling
+  const maxHrs = hasTodayData ? Math.max(...todayItems.map(it => it.hrs)) : 1;
+
+  // Build the snapshot header with hamburger to filter by habit
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="chart-title" style="margin-bottom:2px">📅 Today's Snapshot</div>
+        <div class="chart-sub" style="margin-bottom:0">${todayLabel}</div>
+      </div>
+      <div style="position:relative" id="snap-hamburger-wrap">
+        <button type="button" id="snap-hamburger-btn" style="padding:6px 11px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf);color:var(--text);cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px">
+          ☰ <span id="snap-filter-label">All habits</span>
+        </button>
+        <div id="snap-dropdown" style="position:absolute;top:calc(100% + 4px);right:0;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:150;min-width:170px;display:none;flex-direction:column;overflow:hidden"></div>
+      </div>
+    </div>
+    <div id="snap-bars-wrap" style="margin-top:14px"></div>
+    <div id="snap-total-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px"></div>`;
+
+  // Function to render bars (called on filter change)
+  function renderBars(filterKey) {
+    const barsWrap = card.querySelector('#snap-bars-wrap');
+    const totalRow = card.querySelector('#snap-total-row');
+    const filterLabel = card.querySelector('#snap-filter-label');
+
+    const items = filterKey ? todayItems.filter(it => it.key === filterKey) : todayItems;
+
+    if (filterLabel) {
+      if (!filterKey) {
+        filterLabel.textContent = 'All habits';
+      } else {
+        const found = todayItems.find(it => it.key === filterKey);
+        filterLabel.textContent = found ? found.icon + ' ' + found.name : 'All habits';
+      }
+    }
+
+    if (!hasTodayData || items.length === 0) {
+      barsWrap.innerHTML = `<div style="text-align:center;padding:28px 16px;color:var(--hint);font-size:13px">
+        <div style="font-size:28px;margin-bottom:8px">🌅</div>
+        <div>Nothing logged today yet.</div>
+        <div style="font-size:11px;margin-top:4px">Track activities in the Tracker tab to see them here.</div>
+      </div>`;
+      totalRow.innerHTML = '';
+      return;
+    }
+
+    const localMax = Math.max(...items.map(it => it.hrs));
+    let html = '';
+    items.forEach(it => {
+      const pct = localMax > 0 ? (it.hrs / localMax) * 100 : 0;
+      const displayHrs = it.hrs >= 1
+        ? it.hrs.toFixed(1) + ' h'
+        : Math.round(it.hrs * 60) + ' m';
+      const barPct = Math.max(pct, 3); // min 3% so bar is always visible
+      html += `
+        <div class="snap-bar-row" data-key="${it.key}" style="margin-bottom:11px;cursor:pointer" title="Click to focus in Activity Trends">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:600;color:var(--text)">${it.icon} ${it.name}</span>
+            <span style="font-size:11px;font-weight:700;color:${it.color}">${displayHrs}</span>
+          </div>
+          <div style="background:var(--surf2);border-radius:6px;height:10px;overflow:hidden;position:relative">
+            <div class="snap-bar-fill" style="
+              height:100%;
+              width:${barPct.toFixed(1)}%;
+              background:${it.color};
+              border-radius:6px;
+              transition:width .5s cubic-bezier(.4,0,.2,1);
+              position:relative;
+            ">
+              <div style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 60%,rgba(255,255,255,0.18));border-radius:6px"></div>
+            </div>
+          </div>
+        </div>`;
+    });
+    barsWrap.innerHTML = html;
+
+    // Total row
+    const totalHrs = items.reduce((s, it) => s + it.hrs, 0);
+    const totalDisplay = totalHrs >= 1 ? totalHrs.toFixed(1) + ' hrs' : Math.round(totalHrs * 60) + ' min';
+    const actCount = items.length;
+    totalRow.innerHTML = `
+      <span style="font-size:11px;color:var(--hint)">${actCount} activit${actCount === 1 ? 'y' : 'ies'} logged today</span>
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Total: ${totalDisplay}</span>`;
+
+    // Wire bar-row clicks → focus Activity Trends chart
+    barsWrap.querySelectorAll('.snap-bar-row').forEach(row => {
+      row.addEventListener('mouseenter', () => { row.style.opacity = '0.8'; });
+      row.addEventListener('mouseleave', () => { row.style.opacity = '1'; });
+      row.addEventListener('click', () => {
+        const k = row.dataset.key;
+        // Scroll to trends chart and focus
+        if (typeof _trendFocusKey !== 'undefined') {
+          // applyFocus is scoped inside renderTrends, so we toggle via a custom event
+          document.dispatchEvent(new CustomEvent('snapshot-focus', { detail: { key: k } }));
+          // Smooth-scroll to activity trends card
+          const trendCard = document.querySelector('#chart-combined-trends');
+          if (trendCard) trendCard.closest('.chart-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  }
+
+  // Build dropdown
+  function buildDropdown() {
+    const dd = card.querySelector('#snap-dropdown');
+    dd.innerHTML = '';
+
+    // All option
+    const allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.textContent = '🗂 All habits';
+    allBtn.style.cssText = 'padding:10px 14px;text-align:left;border:none;background:var(--green-lt);color:var(--text);cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);transition:background .15s';
+    allBtn.onmouseover = () => allBtn.style.background = 'var(--green-lt)';
+    allBtn.onmouseout = () => allBtn.style.background = 'var(--green-lt)';
+    allBtn.onclick = () => { renderBars(null); dd.style.display = 'none'; buildDropdown(); };
+    dd.appendChild(allBtn);
+
+    // Per-activity (use all logged activities, not just today)
+    activityKeys.forEach((key, idx) => {
+      const act = byActivity[key];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = act.icon + ' ' + act.name;
+      btn.style.cssText = 'padding:10px 14px;text-align:left;border:none;background:transparent;color:var(--text);cursor:pointer;font-size:13px;transition:background .15s';
+      btn.onmouseover = () => btn.style.background = 'var(--green-lt)';
+      btn.onmouseout = () => btn.style.background = 'transparent';
+      btn.onclick = () => { renderBars(key); dd.style.display = 'none'; buildDropdown(); };
+      dd.appendChild(btn);
+    });
+  }
+
+  buildDropdown();
+  renderBars(null);
+
+  // Hamburger toggle
+  setTimeout(() => {
+    const btn = card.querySelector('#snap-hamburger-btn');
+    const dd = card.querySelector('#snap-dropdown');
+    if (btn && dd) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dd.style.display = dd.style.display === 'none' ? 'flex' : 'none';
+      });
+      const closeSnap = (e) => {
+        const wrap = card.querySelector('#snap-hamburger-wrap');
+        if (wrap && !wrap.contains(e.target)) dd.style.display = 'none';
+      };
+      if (window._snapDropdownListener) document.removeEventListener('click', window._snapDropdownListener);
+      window._snapDropdownListener = closeSnap;
+      document.addEventListener('click', closeSnap);
+    }
+  }, 0);
+
+  return card;
+}
+
+async function renderTrends(){
   const content=document.getElementById('trends-content');
   if(!content)return;
+
+  // ── Fetch logs from backend ──
+  try {
+    const token = localStorage.getItem('qt_token');
+    if (token) {
+      const res = await fetch(`${API_BASE}/logs`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const dbLogs = await res.json();
+      if (Array.isArray(dbLogs) && dbLogs.length) {
+        // Merge DB logs into local format
+        const ud = getUserData();
+        if (ud) {
+          dbLogs.forEach(l => {
+            const exists = ud.logs.find(local => local.id === l.id);
+            if (!exists) ud.logs.push({
+              id: l.id,
+              habitId: l.habit_id,
+              habitName: l.habit_name,
+              habitIcon: l.habit_icon || '📋',
+              date: normalizeDateValue(l.date),
+              duration: l.duration,
+              unit: l.unit || 'hrs',
+              note: l.note
+            });
+          });
+          normalizeLogDates(ud);
+          saveUserData();
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('Could not fetch logs from backend:', e);
+  }
+
   const ud=getUserData();
   if(!ud||!ud.logs.length){
     content.innerHTML=`<div class="no-data-msg"><div class="no-data-icon">📊</div><div>No habit logs yet.</div><div style="margin-top:6px;font-size:12px">Log your habits in the Tracker tab to see trends here.</div></div>`;
     return;
   }
+
+
+
   Object.values(chartInstances).forEach(c=>{try{c.destroy();}catch(e){}});
   chartInstances={};
   content.innerHTML='';
@@ -1660,17 +2097,6 @@ function renderTrends(){
   card.className='chart-card';
   card.style.cssText='padding:20px 16px 16px';
 
-  /* Build legend chips — clickable */
-  function buildLegendHTML(focusKey){
-    return allDatasets.map((ds,i)=>{
-      const color=TREND_PALETTE[i%TREND_PALETTE.length];
-      const isActive = !focusKey || focusKey===ds._key;
-      const opacity = isActive ? '1' : '0.35';
-      const fw = isActive ? '600' : '400';
-      return `<span class="trend-legend-chip" data-key="${ds._key}" style="--chip-color:${color};opacity:${opacity};font-weight:${fw};cursor:pointer;transition:opacity .2s">${ds.label}</span>`;
-    }).join('');
-  }
-
   /* Build trend badges — clickable */
   function buildBadgesHTML(focusKey){
     return activityKeys.map((key,i)=>{
@@ -1703,13 +2129,76 @@ function renderTrends(){
   card.innerHTML=`
     <div class="chart-title" style="margin-bottom:4px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">📈 Activity Trends<span id="trend-focus-label">${focusLabel(_trendFocusKey)}</span></div>
     <div class="chart-sub" style="margin-bottom:14px">Daily hours per activity · hover dots for info · <strong>click an activity</strong> to isolate its trendline</div>
-    <div class="trend-legend-row" id="trend-legend-row">${buildLegendHTML(_trendFocusKey)}</div>
+    <div id="trend-legend-row" style="margin-bottom:14px"></div>
     <div style="position:relative;width:100%;height:260px;margin-top:12px">
       <canvas id="chart-combined-trends" role="img" aria-label="Combined activity trends chart"></canvas>
     </div>
     <div class="trend-acts-grid" id="trend-acts-grid" style="margin-top:16px">${buildBadgesHTML(_trendFocusKey)}</div>`;
 
+  /* ── 📅 TODAY'S SNAPSHOT — insert before Activity Trends ── */
+  const snapshotCard = buildTodaySnapshot(ud.logs, byActivity, allDates, TREND_PALETTE, activityKeys);
+  content.appendChild(snapshotCard);
+
   content.appendChild(card);
+  
+  /* Build hamburger menu for trend activities */
+  const legendRow = document.getElementById('trend-legend-row');
+  if (legendRow) {
+    const hamburgerContainer = document.createElement('div');
+    hamburgerContainer.style.cssText = 'position:relative;display:inline-block';
+    
+    const hamburgerBtn = document.createElement('button');
+    hamburgerBtn.type = 'button';
+    hamburgerBtn.textContent = '☰ Activities';
+    hamburgerBtn.style.cssText = 'padding:8px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf);color:var(--text);cursor:pointer;font-size:13px;font-weight:500';
+    
+    const dropdown = document.createElement('div');
+    dropdown.id = 'trend-filter-dropdown';
+    dropdown.style.cssText = 'position:absolute;top:100%;left:0;margin-top:4px;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:100;min-width:180px;display:none;flex-direction:column';
+    
+    // "All" option
+    const allOption = document.createElement('button');
+    allOption.type = 'button';
+    allOption.textContent = '🗂 All';
+    allOption.style.cssText = `padding:10px 14px;text-align:left;border:none;background:${!_trendFocusKey ? 'var(--green-lt)' : 'transparent'};color:var(--text);cursor:pointer;font-size:13px;transition:background .2s;border-bottom:1px solid var(--border)`;
+    allOption.onmouseover = () => allOption.style.background = 'var(--green-lt)';
+    allOption.onmouseout = () => allOption.style.background = !_trendFocusKey ? 'var(--green-lt)' : 'transparent';
+    allOption.onclick = () => { applyFocus(null); dropdown.style.display = 'none'; };
+    dropdown.appendChild(allOption);
+    
+    // Build activity options
+    activityKeys.forEach((key, idx) => {
+      const act = byActivity[key];
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.textContent = act.icon + ' ' + act.name;
+      option.style.cssText = `padding:10px 14px;text-align:left;border:none;background:${_trendFocusKey === key ? 'var(--green-lt)' : 'transparent'};color:var(--text);cursor:pointer;font-size:13px;transition:background .2s`;
+      option.onmouseover = () => option.style.background = 'var(--green-lt)';
+      option.onmouseout = () => option.style.background = _trendFocusKey === key ? 'var(--green-lt)' : 'transparent';
+      option.onclick = () => { applyFocus(_trendFocusKey === key ? null : key); dropdown.style.display = 'none'; };
+      dropdown.appendChild(option);
+    });
+    
+    hamburgerBtn.onclick = () => {
+      dropdown.style.display = dropdown.style.display === 'none' ? 'flex' : 'none';
+    };
+    
+    hamburgerContainer.appendChild(hamburgerBtn);
+    hamburgerContainer.appendChild(dropdown);
+    legendRow.appendChild(hamburgerContainer);
+    
+    // Close dropdown when clicking outside
+    setTimeout(() => {
+      const closeDropdown = (e) => {
+        if (!hamburgerContainer.contains(e.target) && dropdown.style.display === 'flex') {
+          dropdown.style.display = 'none';
+        }
+      };
+      document.addEventListener('click', closeDropdown);
+      if (window._trendDropdownListener) document.removeEventListener('click', window._trendDropdownListener);
+      window._trendDropdownListener = closeDropdown;
+    }, 0);
+  }
 
   /* ── Helper: get datasets filtered by focus ── */
   function getVisibleDatasets(focusKey){
@@ -1729,17 +2218,13 @@ function renderTrends(){
       ch._draw();
     }
 
-    // Update legend chips
-    const legendRow = document.getElementById('trend-legend-row');
-    if(legendRow) legendRow.innerHTML = buildLegendHTML(focusKey);
-
-    // Re-attach legend chip listeners
-    document.querySelectorAll('#trend-legend-row .trend-legend-chip').forEach(chip=>{
-      chip.addEventListener('click', ()=>{
-        const k = chip.dataset.key;
-        applyFocus(_trendFocusKey===k ? null : k);
-      });
-    });
+    // Update focus label
+    const lbl = document.getElementById('trend-focus-label');
+    if(lbl){
+      lbl.innerHTML = focusLabel(focusKey);
+      const clearBtn = document.getElementById('trend-clear-focus');
+      if(clearBtn) clearBtn.addEventListener('click', e=>{ e.stopPropagation(); applyFocus(null); });
+    }
 
     // Update badges
     const grid = document.getElementById('trend-acts-grid');
@@ -1752,14 +2237,6 @@ function renderTrends(){
         applyFocus(_trendFocusKey===k ? null : k);
       });
     });
-
-    // Update focus label
-    const lbl = document.getElementById('trend-focus-label');
-    if(lbl){
-      lbl.innerHTML = focusLabel(focusKey);
-      const clearBtn = document.getElementById('trend-clear-focus');
-      if(clearBtn) clearBtn.addEventListener('click', e=>{ e.stopPropagation(); applyFocus(null); });
-    }
   }
 
   /* ── 5. Render chart ── */
@@ -1806,24 +2283,20 @@ function renderTrends(){
     });
 
     /* Wire legend chip clicks after chart is ready */
-    document.querySelectorAll('#trend-legend-row .trend-legend-chip').forEach(chip=>{
-      chip.addEventListener('click', ()=>{
-        const k = chip.dataset.key;
-        applyFocus(_trendFocusKey===k ? null : k);
-      });
-    });
-
-    /* Wire badge clicks */
-    document.querySelectorAll('#trend-acts-grid .trend-act-badge').forEach(badge=>{
-      badge.addEventListener('click', ()=>{
-        const k = badge.dataset.key;
-        applyFocus(_trendFocusKey===k ? null : k);
-      });
-    });
-
     /* Wire clear-focus button if focus is already active */
     const clearBtn = document.getElementById('trend-clear-focus');
     if(clearBtn) clearBtn.addEventListener('click', e=>{ e.stopPropagation(); applyFocus(null); });
+
+    /* Wire snapshot-focus custom event so clicking a bar in Today's Snapshot
+       focuses the corresponding trendline in Activity Trends */
+    if (window._snapshotFocusListener) {
+      document.removeEventListener('snapshot-focus', window._snapshotFocusListener);
+    }
+    window._snapshotFocusListener = (e) => {
+      const k = e.detail && e.detail.key;
+      if (k) applyFocus(_trendFocusKey === k ? null : k);
+    };
+    document.addEventListener('snapshot-focus', window._snapshotFocusListener);
 
   },50);
 
@@ -2083,23 +2556,68 @@ function renderHistory() {
 
   const habitIds = [...new Set(ud.logs.map(l => l.habitId))];
   filterWrap.innerHTML = '';
-  const allBtn = document.createElement('button');
-  allBtn.className = 'sound-btn' + (historyFilter === 'all' ? ' sel' : '');
-  allBtn.textContent = '🗂 All';
-  allBtn.onclick = () => { historyFilter = 'all'; renderHistory(); };
-  filterWrap.appendChild(allBtn);
-
+  
+  // Hamburger menu container
+  const hamburgerContainer = document.createElement('div');
+  hamburgerContainer.style.cssText = 'position:relative;display:inline-block';
+  
+  // Hamburger button
+  const hamburgerBtn = document.createElement('button');
+  hamburgerBtn.type = 'button';
+  hamburgerBtn.textContent = '☰ Activities';
+  hamburgerBtn.style.cssText = 'padding:8px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf);color:var(--text);cursor:pointer;font-size:13px;font-weight:500';
+  
+  // Dropdown menu
+  const dropdown = document.createElement('div');
+  dropdown.id = 'history-filter-dropdown';
+  dropdown.style.cssText = 'position:absolute;top:100%;left:0;margin-top:4px;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:100;min-width:180px;display:none;flex-direction:column';
+  
+  // "All" option
+  const allOption = document.createElement('button');
+  allOption.type = 'button';
+  allOption.textContent = '🗂 All';
+  allOption.style.cssText = `padding:10px 14px;text-align:left;border:none;background:${historyFilter === 'all' ? 'var(--green-lt)' : 'transparent'};color:var(--text);cursor:pointer;font-size:13px;transition:background .2s;border-bottom:1px solid var(--border)`;
+  allOption.onmouseover = () => allOption.style.background = 'var(--green-lt)';
+  allOption.onmouseout = () => allOption.style.background = historyFilter === 'all' ? 'var(--green-lt)' : 'transparent';
+  allOption.onclick = () => { historyFilter = 'all'; dropdown.style.display = 'none'; renderHistory(); };
+  dropdown.appendChild(allOption);
+  
   // Build unique categories from logs — exclude quick alarms
   const seen = new Set();
   ud.logs.filter(l => !l.isQuickAlarm).forEach(l => {
     if(seen.has(l.habitId)) return;
     seen.add(l.habitId);
-    const btn = document.createElement('button');
-    btn.className = 'sound-btn' + (historyFilter === l.habitId ? ' sel' : '');
-    btn.textContent = l.habitIcon + ' ' + l.habitName;
-    btn.onclick = () => { historyFilter = l.habitId; renderHistory(); };
-    filterWrap.appendChild(btn);
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.textContent = l.habitIcon + ' ' + l.habitName;
+    option.style.cssText = `padding:10px 14px;text-align:left;border:none;background:${historyFilter === l.habitId ? 'var(--green-lt)' : 'transparent'};color:var(--text);cursor:pointer;font-size:13px;transition:background .2s`;
+    option.onmouseover = () => option.style.background = 'var(--green-lt)';
+    option.onmouseout = () => option.style.background = historyFilter === l.habitId ? 'var(--green-lt)' : 'transparent';
+    option.onclick = () => { historyFilter = l.habitId; dropdown.style.display = 'none'; renderHistory(); };
+    dropdown.appendChild(option);
   });
+  
+  // Toggle dropdown on hamburger click
+  hamburgerBtn.onclick = () => {
+    dropdown.style.display = dropdown.style.display === 'none' ? 'flex' : 'none';
+  };
+  
+  hamburgerContainer.appendChild(hamburgerBtn);
+  hamburgerContainer.appendChild(dropdown);
+  filterWrap.appendChild(hamburgerContainer);
+  
+  // Close dropdown when clicking outside
+  setTimeout(() => {
+    const closeDropdown = (e) => {
+      if (!hamburgerContainer.contains(e.target) && dropdown.style.display === 'flex') {
+        dropdown.style.display = 'none';
+      }
+    };
+    document.addEventListener('click', closeDropdown);
+    // Clean up previous listeners (simple approach)
+    if (window._historyDropdownListener) document.removeEventListener('click', window._historyDropdownListener);
+    window._historyDropdownListener = closeDropdown;
+  }, 0);
 
   const logs = ud.logs
     .filter(l => !l.isQuickAlarm && (historyFilter === 'all' || l.habitId === historyFilter))
@@ -2108,13 +2626,12 @@ function renderHistory() {
 
   const byDate = {};
   logs.forEach(l => {
-    if (!byDate[l.date]) byDate[l.date] = [];
-    byDate[l.date].push(l);
+    const dateKey = normalizeDateValue(l.date);
+    if (!byDate[dateKey]) byDate[dateKey] = [];
+    byDate[dateKey].push(l);
   });
 
   content.innerHTML = '';
-  /* ── Summary first, then dated entries below ── */
-  _renderActivitySummary(content, ud);
 
   Object.keys(byDate).sort((a,b) => b.localeCompare(a)).forEach(dateStr => {
     const heading = document.createElement('div');
@@ -2122,7 +2639,17 @@ function renderHistory() {
     const isToday = dateStr === new Date().toISOString().split('T')[0];
     const isYesterday = dateStr === new Date(Date.now() - 86400000).toISOString().split('T')[0];
     const label = isToday ? 'Today' : isYesterday ? 'Yesterday' : d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
-    heading.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--hint);letter-spacing:.07em;text-transform:uppercase;padding:16px 0 8px;border-top:.5px solid var(--border);margin-top:4px">${label}</div>`;
+    heading.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 0 8px;border-top:.5px solid var(--border);margin-top:4px';
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:11px;font-weight:600;color:var(--hint);letter-spacing:.07em;text-transform:uppercase;';
+    title.textContent = label;
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.textContent = 'Clear day';
+    clearBtn.style.cssText = 'font-size:11px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:transparent;color:var(--text);cursor:pointer';
+    clearBtn.onclick = () => clearLogsByDate(dateStr);
+    heading.appendChild(title);
+    heading.appendChild(clearBtn);
     content.appendChild(heading);
 
     byDate[dateStr].forEach(l => {
@@ -2149,6 +2676,7 @@ function renderHistory() {
 }
 
 function _renderActivitySummary(container, ud) {
+  return; // Summary section removed per user request
   // Always aggregate ALL logs (ignore current historyFilter) so summary is always complete
   const allLogs = ud.logs.filter(l => !l.isQuickAlarm);
   if (!allLogs.length) return;
@@ -2216,6 +2744,19 @@ function deleteLog(logId) {
   renderTrends();
 }
 
+function clearLogsByDate(dateStr) {
+  const ud = getUserData();
+  if (!ud) return;
+  const normalizedDate = normalizeDateValue(dateStr);
+  if (!normalizedDate) return;
+  ud.logs = ud.logs.filter(l => normalizeDateValue(l.date) !== normalizedDate);
+  saveUserData();
+  renderHistory();
+  renderCalendar();
+  renderCalendar2();
+  renderTrends();
+}
+
 /* ═══════════════════════════════════════
    EXPORT
 ═══════════════════════════════════════ */
@@ -2223,7 +2764,7 @@ function exportCSV(){
   const ud=getUserData();
   if(!ud||!ud.logs.length){alert('No logs to export yet.');return;}
   const rows=[['Date','Habit','Duration','Unit','Start','End','Note']];
-  ud.logs.forEach(l=>rows.push([l.date,l.habitName,l.duration,l.unit,l.startTime||'',l.endTime||'',l.note||'']));
+  ud.logs.forEach(l=>rows.push([normalizeDateValue(l.date),l.habitName,l.duration,l.unit,l.startTime||'',l.endTime||'',l.note||'']));
   const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
   const a=document.createElement('a');
@@ -2236,7 +2777,7 @@ function exportExcel(){
   const ud=getUserData();
   if(!ud||!ud.logs.length){alert('No logs to export yet.');return;}
   const rows=[['Date','Habit','Duration','Unit','Start Time','End Time','Note']];
-  ud.logs.forEach(l=>rows.push([l.date,l.habitName,l.duration,l.unit,l.startTime||'',l.endTime||'',l.note||'']));
+  ud.logs.forEach(l=>rows.push([normalizeDateValue(l.date),l.habitName,l.duration,l.unit,l.startTime||'',l.endTime||'',l.note||'']));
   const header=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>td{font-family:Calibri,sans-serif;font-size:11pt;padding:4px 8px;border:1px solid #ccc}th{background:#1D9E75;color:#fff;font-weight:600}</style></head><body><table>`;
   const htmlRows=rows.map((r,i)=>`<tr>${r.map(c=>`<${i===0?'th':'td'}>${c}</${i===0?'th':'td'}>`).join('')}</tr>`).join('');
   const html=header+htmlRows+'</table></body></html>';
@@ -2691,7 +3232,7 @@ function closeScheduleModal() {
 }
 
 /* ── Save / Update ── */
-function saveSchedule() {
+async function saveSchedule() {
   const customText = document.getElementById('sc-custom-activity').value.trim();
   const category = customText || _scSelectedCat;
   const date = document.getElementById('sc-date').value;
@@ -2779,6 +3320,7 @@ function saveSchedule() {
 
   msgEl.className = 'auth-msg ok';
   saveUserData();
+
   renderTrackerSchedules();
   renderHistory();
   renderTrends();
@@ -2793,6 +3335,7 @@ function deleteSchedule(id) {
   // Also remove the matching log entry
   ud.logs = ud.logs.filter(l => l.scheduleId !== id);
   saveUserData();
+
   renderTrackerSchedules();
   renderHistory();
   renderTrends();
@@ -2897,6 +3440,7 @@ function renderTrackerSchedules() {
 }
 
 function _renderTrackerSummary(container, ud) {
+  return; // Tracker summary removed per user request
   if (!ud || !ud.logs) return;
   const allLogs = ud.logs.filter(l => !l.isQuickAlarm);
   if (!allLogs.length) return;
@@ -3228,7 +3772,7 @@ function swStop() {
 
   // Clear previous selection
   document.getElementById('sw-log-msg').textContent = '';
-  document.querySelectorAll('#sw-categories .sw-act-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('#sw-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
   _swCat = '';
   const customInput = document.getElementById('sw-custom-activity');
   if (customInput) customInput.value = '';
@@ -3257,7 +3801,7 @@ function swReset() {
   document.getElementById('sw-log-section').style.display = 'none';
   document.getElementById('sw-laps').innerHTML = '';
   document.getElementById('sw-log-msg').textContent = '';
-  document.querySelectorAll('#sw-categories .sw-act-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('#sw-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
   const customInput = document.getElementById('sw-custom-activity');
   if (customInput) customInput.value = '';
 }
@@ -3279,7 +3823,7 @@ function _swFmt(ms) {
 
 /* ── Activity selection ── */
 function swSelectCat(btn) {
-  document.querySelectorAll('#sw-categories .sw-act-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('#sw-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
   btn.classList.add('sel');
   _swCat = btn.dataset.cat;
   const customInput = document.getElementById('sw-custom-activity');
@@ -3288,13 +3832,15 @@ function swSelectCat(btn) {
 
 function swClearCatIfTyping() {
   _swCat = '';
-  document.querySelectorAll('#sw-categories .sw-act-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('#sw-categories .aa-cat-btn').forEach(b => b.classList.remove('sel'));
 }
 
 /* ── Save to History ── */
-function swLogTime() {
-  const customText = (document.getElementById('sc-custom-activity')?.value || '').trim();
+async function swLogTime() {
+  const customText = (document.getElementById('sw-custom-activity')?.value || '').trim();
+  // const customText = (document.getElementById('sc-custom-activity')?.value || '').trim();
   const cat = customText || _swCat;
+  
   if (!cat) {
     const msg = document.getElementById('sw-log-msg');
     msg.textContent = 'Please select an activity or type one.';
@@ -3314,26 +3860,45 @@ function swLogTime() {
   const icon    = customText ? '✍' : (catIcons[cat] || '⏱');
   const habitId = (typeof LF_CAT_HABIT_MAP !== 'undefined' && LF_CAT_HABIT_MAP[cat])
                   || cat.toLowerCase().replace(/\s+/g, '-');
+  const today   = new Date().toISOString().split('T')[0];
 
+  // ── Save to local storage (keep as before) ──
   ud.logs.push({
-    id:         Date.now(),
-    habitId,
-    habitName:  cat,
-    habitIcon:  icon,
-    date:       new Date().toISOString().split('T')[0],
-    duration:   hrs,
-    unit:       'hrs',
-    startTime:  '',
-    endTime:    '',
-    note:       `Stopwatch · ${_swFmt(ms)}`
+    id: Date.now(), habitId, habitName: cat, habitIcon: icon,
+    date: today, duration: hrs, unit: 'hrs',
+    startTime: '', endTime: '', note: `Stopwatch · ${_swFmt(ms)}`
   });
-
   saveUserData();
-  if (typeof renderHistory         === 'function') renderHistory();
-  if (typeof renderCalendar        === 'function') renderCalendar();
-  if (typeof renderCalendar2       === 'function') renderCalendar2();
-  if (typeof renderTrends          === 'function') renderTrends();
-  if (typeof renderTodayTracker    === 'function') renderTodayTracker();
+
+  // ── POST to backend ──
+  try {
+    const res = await fetch(`${API_BASE}/logs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('qt_token')
+      },
+      body: JSON.stringify({
+        habit_id:   habitId,
+        habit_name: cat,
+        habit_icon: icon,
+        date:       today,
+        duration:   hrs,
+        unit:       'hrs',
+        note:       `Stopwatch · ${_swFmt(ms)}`
+      })
+    });
+    const data = await res.json();
+    console.log('Log saved to DB:', data);
+  } catch (e) {
+    console.error('Failed to save log to backend:', e);
+  }
+
+  if (typeof renderHistory          === 'function') renderHistory();
+  if (typeof renderCalendar         === 'function') renderCalendar();
+  if (typeof renderCalendar2        === 'function') renderCalendar2();
+  if (typeof renderTrends           === 'function') renderTrends();
+  if (typeof renderTodayTracker     === 'function') renderTodayTracker();
   if (typeof renderTrackerSchedules === 'function') renderTrackerSchedules();
 
   const msg = document.getElementById('sw-log-msg');
@@ -3360,4 +3925,3 @@ function _swRenderLaps() {
     </div>`;
   }).join('');
 }
-

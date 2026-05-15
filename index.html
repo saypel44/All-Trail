@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ངེ་ Routine</title>
-<link rel="icon" type="image/png" href="logo.png">
+<title>Quick Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <script>
@@ -346,13 +345,12 @@
   <div class="auth-card">
     <div class="auth-top">
       <div class="auth-logo-wrap">
-        <img src="./logo.png" alt="SomPel Tech Logo" class="auth-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <img src="myroutine.jpg" alt="SomPel Tech Logo" class="auth-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="auth-logo-fallback" style="display:none">
           <span>SPT</span>
         </div>
       </div>
-      <h1>ངེ་ Routine</h1>
-      <p>Personalised wellness check-ins, just for you</p>
+      <p>Personalised wellness check-in, just for you</p>
     </div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
@@ -396,36 +394,38 @@
   <div class="app-header">
     <div class="app-logo">
       <div class="app-logo-icon">
-        <img src="../logo.png" alt="Logo" class="app-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="app-logo-spt-fallback" style="display:none">SPT</span>
+        <img src="myroutine.jpg" alt="Logo" class="app-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="app-logo-spt-fallback" style="display:none">SPT</span>
       </div>
     </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showTab('check-in')">Check-In</button>
+      <button class="nav-tab" onclick="showTab('tracker')">⏰ Tracker</button>
+      <button class="nav-tab" onclick="showTab('history')">🗓️ History</button>
+      <button class="nav-tab" onclick="showTab('trends')">  📊Trends</button>
+    </div>
+    
     <div class="user-pill" onclick="openSettings()" title="Settings">
       <div class="user-avatar" id="hdr-avatar"></div>
       <span class="user-pill-name" id="hdr-name"></span>
       <span class="user-pill-caret">⚙</span>
     </div>
+
   </div>
 
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showTab('check-in')">Check-In</button>
-    <button class="nav-tab" onclick="showTab('tracker')">📋 Tracker</button>
-    <button class="nav-tab" onclick="showTab('history')">📅 History</button>
-    <button class="nav-tab" onclick="showTab('trends')">📈 Trends</button>
-  </div>
+
 
   <!-- ── CHECK-IN TAB ── -->
   <div id="tab-check-in" class="tab-pane active">
+   <div class="box">
     <div class="hero">
-      <div class="hero-icon">
-         <span>ངེ་ Routine</span>
-        <!-- <img src="../logo.png" alt="Logo" class="hero-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="hero-logo-fallback" style="display:none">SPT</span> -->
-      </div>
-      <h2>Hello, <span id="greeting-name"></span> 👋</h2>
-      <p>What’s your day ? Get simple, gentle guidance made for you.</p>
+      <h2>Greetings, <span id="greeting-name"></span> 👋</h2>
+      <p>What’s your day? Get simple and gentle guidance made for you.</p>
       <div class="prog-wrap">
         <div class="prog-meta"><span>Your progress</span><span id="prog-txt">0 of 12</span></div>
         <div class="prog-bar"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
       </div>
+     </div>
     </div>
 
     <form id="tracker-form" onsubmit="return false">
@@ -433,7 +433,7 @@
 
       <div class="q-card">
         <div class="q-num">Question 1</div><p class="q-title">How old are you?</p>
-        <div class="opts" data-q="age">
+        <div class="opts section-a" data-q="age">
           <button type="button" class="opt" data-v="Under 18"><span class="opt-em"></span> Under 18</button>
           <button type="button" class="opt" data-v="18–25"><span class="opt-em"></span> 18 – 25</button>
           <button type="button" class="opt" data-v="26–35"><span class="opt-em"></span> 26 – 35</button>
@@ -444,7 +444,7 @@
 
       <div class="q-card">
         <div class="q-num">Question 2</div><p class="q-title">Where do you live?</p>
-        <div class="opts" data-q="location">
+        <div class="opts section-a" data-q="location">
           <button type="button" class="opt" data-v="Urban"><span class="opt-em"></span> City</button>
           <button type="button" class="opt" data-v="Semi-urban"><span class="opt-em"></span> Remote</button>
         </div>
@@ -452,7 +452,7 @@
 
       <div class="q-card">
         <div class="q-num">Question 3</div><p class="q-title">What kind of work do you do most of the time?</p>
-        <div class="opts" data-q="worktype">
+        <div class="opts section-a" data-q="worktype">
           <button type="button" class="opt" data-v="Sitting"><span class="opt-em"></span> Mental </button>
           <button type="button" class="opt" data-v="Physical"><span class="opt-em"></span> Physical</button>
           <button type="button" class="opt" data-v="Both"><span class="opt-em"></span> Both </button>
@@ -463,7 +463,7 @@
 
       <div class="q-card">
         <div class="q-num">Question 4</div><p class="q-title">How many hours do you work on a normal day?</p>
-        <div class="opts" data-q="workhours">
+        <div class="opts section-b" data-q="workhours">
           <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
           <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
           <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
@@ -473,7 +473,7 @@
 
       <div class="q-card">
         <div class="q-num">Question 5</div><p class="q-title">How many hours do you sleep most nights?</p>
-        <div class="opts" data-q="sleep">
+        <div class="opts section-b" data-q="sleep">
           <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
           <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
           <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
@@ -483,7 +483,7 @@
 
       <div class="q-card">
         <div class="q-num">Question 6</div><p class="q-title">How long do you use your phone before going to sleep?</p>
-        <div class="opts" data-q="phonetime">
+        <div class="opts section-b" data-q="phonetime">
           <button type="button" class="opt" data-v="no phone before bed"><span class="opt-em"></span> No phone</button>
           <!-- <button type="button" class="opt" data-v="less than 30 minutes"><span class="opt-em"></span> Under 30 min</button> -->
           <button type="button" class="opt" data-v="30 min–1 hour"><span class="opt-em"></span> 30 min – 1 hr</button>
@@ -495,7 +495,7 @@
 
       <div class="q-card">
         <div class="q-num">Question 7</div><p class="q-title">What time do you usually go to sleep?</p>
-        <div class="opts" data-q="bedtime">
+        <div class="opts section-b" data-q="bedtime">
           <!-- <button type="button" class="opt" data-v="before 9 PM"><span class="opt-em"></span> Before 9 pm</button> -->
           <button type="button" class="opt" data-v="9–10 PM"><span class="opt-em"></span> 9–10 pm</button>
           <button type="button" class="opt" data-v="10–11 PM"><span class="opt-em"></span> 10–11 pm</button>
@@ -557,9 +557,9 @@
           <input 
             type="text" 
             class="aa-custom-input" 
-            id="sc-custom-activity" 
+            id="sw-custom-activity" 
             placeholder="Type activity name" 
-            oninput="scClearCatIfTyping()"
+            oninput="swClearCatIfTyping()"
           >
           <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="swSelectCat(this)">✍ Other</button> -->
         </div>
@@ -807,7 +807,7 @@
 
     <!-- Avatar / info display -->
     <div class="settings-avatar-row">
-      <!-- <div class="settings-avatar" id="st-avatar"></div> -->
+      <div class="settings-avatar" id="st-avatar"></div>
       <div class="settings-avatar-info">
         <div class="settings-avatar-name" id="st-display-name"></div>
         <div class="settings-avatar-user" id="st-display-user"></div>
@@ -861,8 +861,8 @@
 </div>
 </div>
 
-<script src="spttool.js" defer></script>
-<script src="api.js" defer></script>
-
+<!-- <script src="spttool.js" defer></script> -->
+<!-- <script src="spttool.js?v=2" defer></script> -->
+<script src="spttool.js?v=3" defer></script>
 </body>
 </html>

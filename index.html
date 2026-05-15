@@ -603,6 +603,21 @@
       <button class="export-btn" onclick="exportExcel()">📊 Export to Excel</button>
       <button class="export-btn" onclick="exportCSV()">📄 Export CSV</button>
     </div>
+
+    <!-- ── TODAY'S SNAPSHOT ── -->
+    <div id="today-snapshot-card" class="chart-card" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="chart-title" style="margin-bottom:2px">📅 Today's Snapshot</div>
+          <div class="chart-sub" style="margin-bottom:0" id="snap-date-label"></div>
+        </div>
+          <div id="snap-dropdown" class="snap-dropdown"></div>
+        </div>
+      </div>
+      <div id="snap-bars-wrap" style="margin-top:14px"></div>
+      <div id="snap-total-row" class="snap-total-row"></div>
+    </div>
+
     <div id="trends-content"></div>
   </div>
 

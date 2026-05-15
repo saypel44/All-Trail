@@ -272,9 +272,25 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 
 /* ── TODAY'S SNAPSHOT card ── */
 #today-snapshot-card{background:var(--surf);border:.5px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:12px}
+.snap-hamburger-btn{padding:6px 11px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf);color:var(--text);cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px}
+.snap-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:150;min-width:170px;display:none;flex-direction:column;overflow:hidden}
+.snap-total-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.snap-total-count{font-size:11px;color:var(--hint)}
+.snap-total-value{font-size:13px;font-weight:700;color:var(--text)}
 .snap-bar-row{border-radius:var(--rsm);padding:4px 6px;transition:opacity .15s,background .15s}
 .snap-bar-row:hover{background:var(--surf2)}
-.snap-bar-fill{will-change:width}
+.snap-bar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.snap-bar-name{font-size:12px;font-weight:600;color:var(--text)}
+.snap-bar-value{font-size:11px;font-weight:700}
+.snap-bar-track{background:var(--surf2);border-radius:6px;height:10px;overflow:hidden;position:relative}
+.snap-bar-fill{height:100%;border-radius:6px;transition:width .5s cubic-bezier(.4,0,.2,1);position:relative;will-change:width}
+.snap-bar-gloss{position:absolute;inset:0;background:linear-gradient(90deg,transparent 60%,rgba(255,255,255,0.18));border-radius:6px}
+.snap-empty{text-align:center;padding:28px 16px;color:var(--hint);font-size:13px}
+.snap-empty-icon{font-size:28px;margin-bottom:8px}
+.snap-empty-sub{font-size:11px;margin-top:4px}
+.snap-dd-item{padding:10px 14px;text-align:left;border:none;background:transparent;color:var(--text);cursor:pointer;font-size:13px;transition:background .15s}
+.snap-dd-item:hover{background:var(--green-lt)}
+.snap-dd-item--all{background:var(--green-lt);border-bottom:1px solid var(--border)}
 .chart-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
 .chart-sub{font-size:11px;color:var(--hint);margin-bottom:14px}
 .trend-badge{display:inline-flex;align-items:center;gap:5px;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;margin-top:10px}
@@ -303,6 +319,23 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .trend-act-arrow.down{color:var(--red)}
 .trend-act-arrow.neutral{color:var(--muted)}
 .trend-act-avg{font-size:10px;color:var(--hint);margin-top:1px}
+
+/* ── HISTORY PAYWALL ── */
+.history-paywall{margin-top:8px;border-radius:var(--r);overflow:hidden;border:.5px solid var(--border)}
+.history-paywall-blur{position:relative;padding:16px 14px 0;pointer-events:none;user-select:none}
+.history-paywall-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,0) 0%,var(--bg,#f5f3f0) 75%)}
+.history-paywall-ghost-day{margin-bottom:12px}
+.history-paywall-ghost-label{height:11px;width:120px;background:var(--surf3);border-radius:4px;margin-bottom:10px;opacity:.5}
+.history-paywall-ghost-item{height:52px;background:var(--surf2);border-radius:var(--r);margin-bottom:8px;opacity:.4}
+.history-paywall-card{background:var(--surf);padding:22px 20px 24px;text-align:center;border-top:.5px solid var(--border)}
+.history-paywall-lock{font-size:30px;margin-bottom:8px}
+.history-paywall-title{font-family:'Fraunces',serif;font-size:17px;font-weight:600;color:var(--text);margin-bottom:6px}
+.history-paywall-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.history-paywall-perks{list-style:none;margin:0 0 20px;padding:0;text-align:left;display:inline-block}
+.history-paywall-perks li{font-size:13px;color:var(--text);padding:5px 0;display:flex;align-items:center;gap:6px}
+.history-paywall-btn{display:block;width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:var(--rsm);font-family:'Sora',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;margin-bottom:10px}
+.history-paywall-btn:hover{background:var(--green-dk)}
+.history-paywall-note{font-size:11px;color:var(--hint)}
 
 /* ── ALARM MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}

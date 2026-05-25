@@ -1035,6 +1035,7 @@ body::before {
   box-shadow: var(--shadow-sm);
   opacity: 0;
   animation: heroFadeUp 0.65s 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+  text-wrap: center;
   /* margin-top: 25px; */
 }
 
@@ -1939,4 +1940,145 @@ body::before {
   .sidebar         { overflow-y: auto; }
   .bottom-nav      { height: 50px; }
   .page-inner      { padding-bottom: 66px; }
+}
+
+/* ══════════════════════════════════════
+   TEXT WRAP FIX — WORDS FULLY FIT MOBILE
+══════════════════════════════════════ */
+
+/* IMPORTANT */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Universal sizing */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* ALL text containers */
+p,
+span,
+div,
+a,
+button,
+li,
+td,
+th,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.story-content,
+.about-greeting-card,
+.hero-bio-card,
+.section-panel,
+.contact-card,
+.prod-card,
+.stat-card {
+  
+  /* MAIN FIX */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+
+  max-width: 100%;
+}
+
+/* Prevent text stretching layout */
+.story-content,
+.about-greeting-card,
+.hero-bio-card,
+.section-panel {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* MOBILE */
+@media (max-width: 480px) {
+
+  body {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* Paragraph text */
+  p,
+  .story-content p,
+  .about-greeting-card p {
+    font-size: 0.86rem;
+    line-height: 1.9;
+
+    /* FIX */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+
+    max-width: 100%;
+  }
+
+  /* Titles */
+  .hero-title,
+  .page-title,
+  h1,
+  h2,
+  h3 {
+    font-size: 1.08rem;
+    line-height: 1.35;
+
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Card text */
+  .prod-card-title,
+  .contact-card-value,
+  .stat-title,
+  .fc-bar-label,
+  .fc-bar-val {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Layout spacing */
+  .page-inner {
+    padding: 14px 12px 88px;
+  }
+
+  .section-panel,
+  .hero-bio-card,
+  .about-greeting-card,
+  .prod-card,
+  .stat-card {
+    padding: 14px 12px;
+  }
+
+  /* Grid fixes */
+  .stats-row,
+  .info-cards-row,
+  .values-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Bottom cards */
+  .findings-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Buttons */
+  .prod-card-button {
+    width: 100%;
+    font-size: 0.8rem;
+    padding: 10px;
+  }
 }

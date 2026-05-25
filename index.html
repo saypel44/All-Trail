@@ -1,868 +1,901 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Quick Tracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<script>
-/* ── Inline Chart.js-compatible line chart renderer ──
-   Covers all Chart usage in this app: type:'line' with
-   responsive canvas, tooltips, gridlines, tick callbacks.
-   No external dependencies, works from file:// with no
-   tracking-prevention issues.
-─────────────────────────────────────────────────────── */
-(function(global){
-  'use strict';
-
-  const instances = new Map();
-
-  function Chart(canvas, config) {
-    if (!(this instanceof Chart)) return new Chart(canvas, config);
-    this.canvas = canvas;
-    this.config = config;
-    this._tooltip = null;
-    const existing = instances.get(canvas);
-    if (existing) existing.destroy();
-    instances.set(canvas, this);
-    this._resize();
-    this._draw();
-    this._bindEvents();
-  }
-
-
-
-  Chart.prototype._resize = function() {
-    const parent = this.canvas.parentElement;
-    if (!parent) return;
-    const dpr = window.devicePixelRatio || 1;
-    const w = parent.clientWidth || 300;
-    const h = parent.clientHeight || 200;
-    this.canvas.width  = w * dpr;
-    this.canvas.height = h * dpr;
-    this.canvas.style.width  = w + 'px';
-    this.canvas.style.height = h + 'px';
-    this._dpr = dpr;
-    this._w = w;
-    this._h = h;
-  };
-
-  Chart.prototype._bindEvents = function() {
-    const self = this;
-
-    // ── helpers to compute layout (mirrors _draw layout) ──
-    function _layout() {
-      const PAD_TOP = 16, PAD_RIGHT = 16, PAD_BOTTOM = 44, PAD_LEFT = 44;
-      const W = self._w || self.canvas.width;
-      const H = self._h || self.canvas.height;
-      return { plotX: PAD_LEFT, plotY: PAD_TOP,
-               plotW: W - PAD_LEFT - PAD_RIGHT,
-               plotH: H - PAD_TOP - PAD_BOTTOM, W, H };
-    }
-
-    // Find the nearest dot across all datasets to a mouse position
-    function _nearestDot(mx, my) {
-      const { plotX, plotY, plotW, plotH } = _layout();
-      const data = self.config.data || {};
-      const datasets = (data.datasets || []).filter(ds => ds.data && ds.data.length);
-      const labels = data.labels || [];
-      if (!labels.length) return null;
-
-      const allVals = [];
-      datasets.forEach(ds => ds.data.forEach(v => { if (v !== null && v !== undefined) allVals.push(+v); }));
-      const scaleOpts = ((self.config.options || {}).scales || {}).y || {};
-      const yMin = scaleOpts.min !== undefined ? scaleOpts.min : Math.min(0, ...allVals);
-      const yMax = scaleOpts.max !== undefined ? scaleOpts.max : (Math.max(...allVals) * 1.1 || 1);
-
-      function toX(i) { return plotX + (i / Math.max(labels.length - 1, 1)) * plotW; }
-      function toY(v) { return plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
-
-      let best = null, bestDist = 22; // px snap radius
-      datasets.forEach(ds => {
-        const pr = ds.pointRadius !== undefined ? ds.pointRadius : 4;
-        const snapR = Math.max(pr + 8, 16);
-        ds.data.forEach((v, i) => {
-          if (v === null || v === undefined) return;
-          const dx = mx - toX(i), dy = my - toY(+v);
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < snapR && dist < bestDist) {
-            bestDist = dist;
-            best = { ds, i, v: +v, label: labels[i], color: ds.borderColor || '#1D9E75' };
-          }
-        });
-      });
-      return best;
-    }
-
-    this._mouseMove = function(e) {
-      const rect = self.canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const dot = _nearestDot(mx, my);
-      self._hoveredDot = dot;
-      self.canvas.style.cursor = dot ? 'pointer' : 'default';
-      self._draw();
-    };
-    this._mouseLeave = function() {
-      self._hoveredDot = null;
-      self.canvas.style.cursor = 'default';
-      self._draw();
-    };
-    this._click = function(e) {
-      const rect = self.canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const dot = _nearestDot(mx, my);
-      if (dot && self.config.options && self.config.options.onClick) {
-        self.config.options.onClick(dot);
-      }
-    };
-    this.canvas.addEventListener('mousemove', this._mouseMove);
-    this.canvas.addEventListener('mouseleave', this._mouseLeave);
-    this.canvas.addEventListener('click', this._click);
-
-    if (typeof ResizeObserver !== 'undefined') {
-      this._resizeObs = new ResizeObserver(function() {
-        self._resize();
-        self._draw();
-      });
-      if (this.canvas.parentElement) this._resizeObs.observe(this.canvas.parentElement);
-    }
-  };
-
-  Chart.prototype.destroy = function() {
-    if (this._resizeObs) this._resizeObs.disconnect();
-    if (this._mouseMove)  this.canvas.removeEventListener('mousemove',  this._mouseMove);
-    if (this._mouseLeave) this.canvas.removeEventListener('mouseleave', this._mouseLeave);
-    if (this._click)      this.canvas.removeEventListener('click',      this._click);
-    instances.delete(this.canvas);
-    const ctx = this.canvas.getContext('2d');
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-  };
-
-  Chart.prototype._draw = function() {
-    const canvas = this.canvas;
-    const ctx = canvas.getContext('2d');
-    const dpr = this._dpr || 1;
-    const W = this._w || canvas.width;
-    const H = this._h || canvas.height;
-    const opts = this.config.options || {};
-    const data = this.config.data || {};
-    const datasets = (data.datasets || []).filter(ds => ds.data && ds.data.length);
-    const labels = data.labels || [];
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, W, H);
-
-    // Layout
-    const PAD_TOP = 16, PAD_RIGHT = 16, PAD_BOTTOM = 44, PAD_LEFT = 44;
-    const plotX = PAD_LEFT, plotY = PAD_TOP;
-    const plotW = W - PAD_LEFT - PAD_RIGHT;
-    const plotH = H - PAD_TOP - PAD_BOTTOM;
-
-    if (!datasets.length || !labels.length) {
-      ctx.fillStyle = '#a09c96';
-      ctx.font = '13px Sora,sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('No data yet', W / 2, H / 2);
-      ctx.restore();
-      return;
-    }
-
-    // Collect all numeric values
-    const allVals = [];
-    datasets.forEach(ds => ds.data.forEach(v => { if (v !== null && v !== undefined) allVals.push(+v); }));
-    const scaleOpts = (opts.scales && opts.scales.y) || {};
-    const rawMin = scaleOpts.min !== undefined ? scaleOpts.min : Math.min(0, ...allVals);
-    const rawMax = scaleOpts.max !== undefined ? scaleOpts.max : Math.max(...allVals) * 1.1 || 1;
-    const yMin = rawMin, yMax = rawMax;
-
-    function toX(i) { return plotX + (i / Math.max(labels.length - 1, 1)) * plotW; }
-    function toY(v) { return plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
-
-    // Grid lines
-    const maxTicks = (scaleOpts.ticks && scaleOpts.ticks.maxTicksLimit) || 6;
-    const tickStep = (scaleOpts.ticks && scaleOpts.ticks.stepSize) ? scaleOpts.ticks.stepSize : (yMax - yMin) / (maxTicks - 1);
-    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
-    ctx.lineWidth = 1;
-    for (let v = yMin; v <= yMax + 0.001; v += tickStep) {
-      const y = toY(v);
-      ctx.beginPath(); ctx.moveTo(plotX, y); ctx.lineTo(plotX + plotW, y); ctx.stroke();
-      const tickCb = scaleOpts.ticks && scaleOpts.ticks.callback;
-      const label = tickCb ? tickCb(+v.toFixed(2)) : +v.toFixed(1);
-      ctx.fillStyle = '#a09c96';
-      ctx.font = '10px Sora,sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(label, plotX - 4, y + 4);
-    }
-
-    // X axis labels
-    const maxXLabels = Math.floor(plotW / 48);
-    const xStep = Math.max(1, Math.ceil(labels.length / maxXLabels));
-    ctx.fillStyle = '#a09c96';
-    ctx.font = '10px Sora,sans-serif';
-    ctx.textAlign = 'center';
-    labels.forEach((lbl, i) => {
-      if (i % xStep !== 0 && i !== labels.length - 1) return;
-      ctx.fillText(lbl, toX(i), plotY + plotH + 16);
-    });
-
-    // Determine hovered dot for highlight
-    const hovDot = this._hoveredDot;
-
-    // Datasets
-    datasets.forEach(ds => {
-      const color = ds.borderColor || '#1D9E75';
-      const pts = ds.data.map((v, i) => v !== null && v !== undefined ? { x: toX(i), y: toY(+v), v: +v, i } : null);
-
-      // Fill
-      if (ds.fill) {
-        ctx.beginPath();
-        let started = false;
-        pts.forEach(p => {
-          if (!p) return;
-          if (!started) { ctx.moveTo(p.x, p.y); started = true; } else { ctx.lineTo(p.x, p.y); }
-        });
-        ctx.lineTo(toX(pts.length - 1), toY(yMin));
-        ctx.lineTo(toX(0), toY(yMin));
-        ctx.closePath();
-        ctx.fillStyle = ds.backgroundColor || color + '22';
-        ctx.fill();
-      }
-
-      // Line
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      let lineStarted = false;
-      pts.forEach(p => {
-        if (!p) { lineStarted = false; return; }
-        if (!lineStarted) { ctx.moveTo(p.x, p.y); lineStarted = true; } else { ctx.lineTo(p.x, p.y); }
-      });
-      ctx.stroke();
-
-      // Points — enlarge hovered dot
-      const pr = ds.pointRadius !== undefined ? ds.pointRadius : 4;
-      pts.forEach(p => {
-        if (!p) return;
-        const isHov = hovDot && hovDot.ds === ds && hovDot.i === p.i;
-        const r = isHov ? pr + 3 : pr;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = ds.pointBackgroundColor || color;
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = isHov ? 2.5 : 1.5;
-        ctx.stroke();
-        // Outer ring on hovered dot
-        if (isHov) {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
-          ctx.strokeStyle = color + '55';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-      });
-    });
-
-    // Dot-precise tooltip
-    if (hovDot) {
-      const { ds, i, v, label, color } = hovDot;
-      const dotX = toX(i);
-      const dotY = toY(v);
-
-      // Cross-hair lines
-      ctx.save();
-      ctx.strokeStyle = color + '44';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.moveTo(dotX, plotY); ctx.lineTo(dotX, plotY + plotH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(plotX, dotY); ctx.lineTo(plotX + plotW, dotY); ctx.stroke();
-      ctx.restore();
-
-      // Tooltip content
-      const ttOpts = opts.plugins && opts.plugins.tooltip;
-      let lbl = ` ${ds.label}: ${v}`;
-      if (ttOpts && ttOpts.callbacks && ttOpts.callbacks.label) {
-        const res = ttOpts.callbacks.label({ parsed: { y: v }, dataset: ds });
-        if (res !== null && res !== undefined) lbl = res;
-      }
-
-      const padding = 10;
-      const lineH = 19;
-      const lines = [
-        { text: label, color: '#6b6660', bold: true },
-        { text: lbl, color: '#1a1816' }
-      ];
-      const boxW = Math.max(...lines.map(l => l.text.length * 7.2)) + padding * 2 + 14;
-      const boxH = lines.length * lineH + padding * 2;
-
-      let bx = dotX + 14;
-      let by = dotY - boxH / 2;
-      if (bx + boxW > W - 4) bx = dotX - boxW - 14;
-      if (by < 2) by = 2;
-      if (by + boxH > H - 4) by = H - boxH - 4;
-
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.15)';
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.roundRect(bx, by, boxW, boxH, 7);
-      ctx.fill();
-      // Color accent left bar
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(bx, by, 3, boxH, [7, 0, 0, 7]);
-      ctx.fill();
-      ctx.restore();
-
-      lines.forEach((line, li) => {
-        const ty = by + padding + li * lineH + lineH * 0.65;
-        ctx.fillStyle = line.color;
-        ctx.font = line.bold ? '600 11px Sora,sans-serif' : '12px Sora,sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(line.text, bx + padding + 6, ty);
-      });
-    }
-
-    ctx.restore();
-  };
-
-  global.Chart = Chart;
-}(window));
-</script>
-<link rel="stylesheet" href="spttool.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SomPel Tech</title>
+  <link rel="icon" type="image/jpeg" href="logo.png">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- ══════════════════ AUTH ══════════════════ -->
-<div id="auth-screen" class="screen active">
-  <div class="auth-card">
-    <div class="auth-top">
-      <div class="auth-logo-wrap">
-        <img src="myroutine.jpg" alt="SomPel Tech Logo" class="auth-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="auth-logo-fallback" style="display:none">
-          <span>SPT</span>
-        </div>
-      </div>
-      <p>Personalised wellness check-in, just for you</p>
-    </div>
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
-      <button class="auth-tab" onclick="switchTab('signup')">Create account</button>
-    </div>
-    <div class="auth-body">
-      <div id="tab-login">
-        <form action="javascript:void(0)" onsubmit="doLogin()" autocomplete="on">
-          <div class="field"><label>User ID</label><input id="li-user" type="text" placeholder="Enter your user ID" autocomplete="username"></div>
-          <div class="field"><label>Password</label><div class="pw-wrap"><input id="li-pass" type="password" placeholder="Enter your password" autocomplete="current-password"><button type="button" class="pw-toggle" onclick="togglePw('li-pass',this)" tabindex="-1">👁</button></div></div>
-          <button type="submit" class="auth-btn">Sign in →</button>
-        </form>
-        <div class="forgot-row"><button type="button" class="forgot-link" onclick="toggleForgotPanel()">Forgot password?</button></div>
-        <div id="forgot-panel" class="forgot-panel" style="display:none">
-          <div class="forgot-panel-title">Reset Password</div>
-          <form action="javascript:void(0)" onsubmit="doResetPassword()" autocomplete="on">
-          <div class="field" style="margin-bottom:10px"><label>User ID</label><input id="fp-user" type="text" placeholder="Enter your user ID" autocomplete="username"></div>
-          <div class="field" style="margin-bottom:10px"><label>New Password</label><div class="pw-wrap"><input id="fp-new-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('fp-new-pass',this)" tabindex="-1">👁</button></div></div>
-          <div class="field" style="margin-bottom:10px"><label>Confirm Password</label><div class="pw-wrap"><input id="fp-confirm-pass" type="password" placeholder="Re-enter new password" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('fp-confirm-pass',this)" tabindex="-1">👁</button></div></div>
-          <button type="submit" class="auth-btn">Reset Password →</button>
-          </form>
-          <div id="fp-msg" class="auth-msg"></div>
-        </div>
-        <div id="li-msg" class="auth-msg"></div>
-      </div>
-      <div id="tab-signup" style="display:none">
-        <form action="javascript:void(0)" onsubmit="doSignup()" autocomplete="on">
-          <div class="field"><label>Full name</label><input id="su-name" type="text" placeholder="e.g. Tshering Wangmo" autocomplete="name"></div>
-          <div class="field"><label>Choose a User ID</label><input id="su-user" type="text" placeholder="e.g. tshering99" autocomplete="username"></div>
-          <div class="field"><label>Create password</label><div class="pw-wrap"><input id="su-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('su-pass',this)" tabindex="-1">👁</button></div></div>
-          <button type="submit" class="auth-btn">Create account →</button>
-        </form>
-        <div id="su-msg" class="auth-msg"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════ APP ══════════════════ -->
-<div id="app-screen" class="screen">
-  <div class="app-header">
-    <div class="app-logo">
-      <div class="app-logo-icon">
-        <img src="myroutine.jpg" alt="Logo" class="app-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="app-logo-spt-fallback" style="display:none">SPT</span>
-      </div>
-    </div>
-
-    <div class="nav-tabs">
-      <button class="nav-tab active" onclick="showTab('check-in')">Check-In</button>
-      <button class="nav-tab" onclick="showTab('tracker')">⏰ Tracker</button>
-      <button class="nav-tab" onclick="showTab('history')">🗓️ History</button>
-      <button class="nav-tab" onclick="showTab('trends')">  📊Trends</button>
-    </div>
-    
-    <div class="user-pill" onclick="openSettings()" title="Settings">
-      <div class="user-avatar" id="hdr-avatar"></div>
-      <span class="user-pill-name" id="hdr-name"></span>
-      <span class="user-pill-caret">⚙</span>
-    </div>
-
-  </div>
-
-
-
-  <!-- ── CHECK-IN TAB ── -->
-  <div id="tab-check-in" class="tab-pane active">
-   <div class="box">
-    <div class="hero">
-      <h2>Greetings, <span id="greeting-name"></span> 👋</h2>
-      <p>What’s your day? Get simple and gentle guidance made for you.</p>
-      <div class="prog-wrap">
-        <div class="prog-meta"><span>Your progress</span><span id="prog-txt">0 of 12</span></div>
-        <div class="prog-bar"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
-      </div>
-     </div>
-    </div>
-
-    <form id="tracker-form" onsubmit="return false">
-      <div class="sec-hdr"><div class="sec-pill a"><div class="sec-dot"><span>A</span></div> About you</div><div class="sec-line"></div></div>
-
-      <div class="q-card">
-        <div class="q-num">Question 1</div><p class="q-title">How old are you?</p>
-        <div class="opts section-a" data-q="age">
-          <button type="button" class="opt" data-v="Under 18"><span class="opt-em"></span> Under 18</button>
-          <button type="button" class="opt" data-v="18–25"><span class="opt-em"></span> 18 – 25</button>
-          <button type="button" class="opt" data-v="26–35"><span class="opt-em"></span> 26 – 35</button>
-          <button type="button" class="opt" data-v="36–50"><span class="opt-em"></span> 36 – 50</button>
-          <button type="button" class="opt" data-v="50+"><span class="opt-em"></span> Over 50</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 2</div><p class="q-title">Where do you live?</p>
-        <div class="opts section-a" data-q="location">
-          <button type="button" class="opt" data-v="Urban"><span class="opt-em"></span> City</button>
-          <button type="button" class="opt" data-v="Semi-urban"><span class="opt-em"></span> Remote</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 3</div><p class="q-title">What kind of work do you do most of the time?</p>
-        <div class="opts section-a" data-q="worktype">
-          <button type="button" class="opt" data-v="Sitting"><span class="opt-em"></span> Mental </button>
-          <button type="button" class="opt" data-v="Physical"><span class="opt-em"></span> Physical</button>
-          <button type="button" class="opt" data-v="Both"><span class="opt-em"></span> Both </button>
-        </div>
-      </div>
-
-      <div class="sec-hdr"><div class="sec-pill b"><div class="sec-dot"><span>B</span></div> Daily habits</div><div class="sec-line"></div></div>
-
-      <div class="q-card">
-        <div class="q-num">Question 4</div><p class="q-title">How many hours do you work on a normal day?</p>
-        <div class="opts section-b" data-q="workhours">
-          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
-          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
-          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
-          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em"></span> 9+ hrs</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 5</div><p class="q-title">How many hours do you sleep most nights?</p>
-        <div class="opts section-b" data-q="sleep">
-          <button type="button" class="opt" data-v="0–4 hours"><span class="opt-em"></span> 0–4 hrs</button>
-          <button type="button" class="opt" data-v="5–6 hours"><span class="opt-em"></span> 5–6 hrs</button>
-          <button type="button" class="opt" data-v="7–8 hours"><span class="opt-em"></span> 7–8 hrs</button>
-          <button type="button" class="opt" data-v="9 or more hours"><span class="opt-em"></span> 9+ hrs</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 6</div><p class="q-title">How long do you use your phone before going to sleep?</p>
-        <div class="opts section-b" data-q="phonetime">
-          <button type="button" class="opt" data-v="no phone before bed"><span class="opt-em"></span> No phone</button>
-          <!-- <button type="button" class="opt" data-v="less than 30 minutes"><span class="opt-em"></span> Under 30 min</button> -->
-          <button type="button" class="opt" data-v="30 min–1 hour"><span class="opt-em"></span> 30 min – 1 hr</button>
-          <button type="button" class="opt" data-v="1–2 hours"><span class="opt-em"></span> 1–2 hrs</button>
-          <button type="button" class="opt" data-v="2–3 hours"><span class="opt-em"></span> 2–3 hrs</button>
-          <button type="button" class="opt" data-v="more than 3 hours"><span class="opt-em"></span> 3+ hrs</button>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <div class="q-num">Question 7</div><p class="q-title">What time do you usually go to sleep?</p>
-        <div class="opts section-b" data-q="bedtime">
-          <!-- <button type="button" class="opt" data-v="before 9 PM"><span class="opt-em"></span> Before 9 pm</button> -->
-          <button type="button" class="opt" data-v="9–10 PM"><span class="opt-em"></span> 9–10 pm</button>
-          <button type="button" class="opt" data-v="10–11 PM"><span class="opt-em"></span> 10–11 pm</button>
-          <button type="button" class="opt" data-v="11 PM–12 AM"><span class="opt-em"></span> 11 pm–midnight</button>
-          <button type="button" class="opt" data-v="after 12 AM"><span class="opt-em"></span> After midnight</button>
-        </div>
-      </div>
-
-      <div class="sec-hdr"><div class="sec-pill c"><div class="sec-dot"><span>C</span></div> How you feel</div><div class="sec-line"></div></div>
-
-      <div class="q-card">
-        <div class="q-num">Questions 8 – 12</div>
-        <p class="q-title" style="margin-bottom:16px">Do you agree with each of these?</p>
-        <div class="lik-row" id="lik-container"></div>
-      </div>
-
-      <button type="button" id="submit-btn" disabled onclick="showResults()">See my results →</button>
-    </form>
-
-    <div id="results"></div>
-  </div>
-
-  <!-- ── TRACKER TAB ── -->
-  <div id="tab-tracker" class="tab-pane">
-    <!-- Schedule list (shown when schedules exist) -->
-    <div id="tracker-schedules-wrap" style="display:none">
-      <div class="tracker-list-header">
-        <div>
-          <p class="tracker-page-title" style="margin:0">My Schedules</p>
-          <p class="tracker-page-sub" style="margin:4px 0 0">Your planned activities — tap Edit to update</p>
-        </div>
-        <button class="tracker-add-btn" onclick="openScheduleModal()" title="Add new schedule">＋</button>
-      </div>
-
-       <!-- ── STOPWATCH ── -->
-    <div class="tool-card" style="margin-top:16px">
-      <div class="tool-card-title">⏱ Stopwatch</div>
-      <p class="tool-card-sub">Track how long an activity takes.</p>
-
-      <div class="sw-display" id="sw-display">00:00:00</div>
-
-      <div class="sw-btns">
-        <button class="sw-btn start" id="sw-start-btn" onclick="swStartStop()">▶ Start</button>
-        <button class="sw-btn stop" id="sw-stop-btn" onclick="swStop()" disabled>⏹ Stop</button>
-        <button class="sw-btn reset" id="sw-reset-btn" onclick="swReset()" disabled>↺ Reset</button>
-      </div>
-     <div id="sw-stop" style="margin-top:10px"></div>
-    </div>
-
-      <!-- Log to habit after stopping -->
-      <div id="sw-log-section" style="display:none;margin-top:14px">
-        <div class="add-alarm-section-lbl" style="margin-bottom:8px">📝 Log this time to a habit?</div>
-        <div class="aa-categories" id="sw-categories">
-          <button type="button" class="aa-cat-btn" data-cat="Work" onclick="swSelectCat(this)">💻 Work</button>
-          <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="swSelectCat(this)">📚 Studies</button>
-          <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="swSelectCat(this)">🏃 Exercise</button>
-          <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="swSelectCat(this)">🧘 Meditation</button>
-          <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="swSelectCat(this)">📖 Reading</button>
-          <input 
-            type="text" 
-            class="aa-custom-input" 
-            id="sw-custom-activity" 
-            placeholder="Type activity name" 
-            oninput="swClearCatIfTyping()"
-          >
-          <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="swSelectCat(this)">✍ Other</button> -->
-        </div>
-        <button class="log-btn" style="margin-top:10px;width:100%" onclick="swLogTime()">💾 Save to History</button>
-        <div id="sw-log-msg" class="auth-msg" style="margin-top:6px"></div>
-      </div>
-    </div>  
-
-      <div id="tracker-schedule-list"></div>
-    
-    <!-- Empty state with centered + button -->
-    <div class="tracker-empty-state" id="tracker-empty-state">
-      <div class="tracker-empty-icon">📋</div>
-      <h3 class="tracker-empty-title">No schedules yet</h3>
-      <p class="tracker-empty-sub">Tap the button below to add your first scheduled activity</p>
-      <button class="tracker-fab-center" onclick="openScheduleModal()" title="Add Schedule">
-        <span class="tracker-fab-plus">＋</span>
-        <span class="tracker-fab-label">Add Schedule</span>
-      </button>
-    </div>  
-  </div>
-
-  <!-- ── HISTORY TAB ── -->
-  <div id="tab-history" class="tab-pane">
-    <p class="tracker-page-title">History & Planning</p>
-    <!-- <p class="tracker-page-sub">Tap any day to see logs — or plan ahead by tapping a future date.</p> -->
-
-    <!-- History list -->
-    <div style="margin-top:20px">
-      <div class="lf-section-lbl" style="font-size:13px;color:var(--text);font-weight:600;text-transform:none;letter-spacing:0;margin-bottom:10px">All Logs</div>
-      <div id="history-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
-      <div id="history-content"></div>
-    </div>
-  </div>
-
-  <!-- ── TRENDS TAB ── -->
-  <div id="tab-trends" class="tab-pane">
-    <p class="tracker-page-title">Trends & Insights</p>
-    <p class="tracker-page-sub">Based on your habit log history.</p>
-    <div class="export-row">
-      <button class="export-btn" onclick="exportExcel()">📊 Export to Excel</button>
-      <button class="export-btn" onclick="exportCSV()">📄 Export CSV</button>
-    </div>
-    <div id="trends-content"></div>
-  </div>
-
-  
-<!-- ── FLOATING + BUTTON (hidden on tracker, shown elsewhere) ── -->
-<!-- <button id="fab-add" class="fab-add" onclick="openAddAlarmModal()" title="Set a new alarm">＋</button> -->
-
-<!-- ── SCHEDULE MODAL ── -->
-<div id="schedule-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box schedule-modal-box">
-    <div class="add-alarm-header">
-      <div class="add-alarm-title" id="schedule-modal-title">📅 Add Schedule</div>
-      <button class="add-alarm-close" onclick="closeScheduleModal()">✕</button>
-    </div>
-
-    <!-- Category -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🎯 Activity</div>
-      <div class="aa-categories" id="sc-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="scSelectCat(this)">🌙 Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Work" onclick="scSelectCat(this)">💻 Work</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="scSelectCat(this)">🏃 Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="scSelectCat(this)">📚 Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="scSelectCat(this)">🍽 Meals</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="scSelectCat(this)">📱 Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Reading" onclick="scSelectCat(this)">📖 Reading</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meditation" onclick="scSelectCat(this)">🧘 Meditation</button>
-        <!-- <button type="button" class="aa-cat-btn" data-cat="Other" onclick="scSelectCat(this)">✍ Other</button> -->
-      </div>
-      <input type="text" class="aa-custom-input" id="sc-custom-activity" placeholder="Type activity name" oninput="scClearCatIfTyping()">
-    </div>
-
-    <!-- Date -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">📅 Date</div>
-      <input type="date" id="sc-date" class="lf-date-input">
-    </div>
-
-    <!-- Time range -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">⏰ Time Range</div>
-      <div class="add-alarm-row">
-        <div class="ampm-field" style="flex:1">
-          <label>From</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="sc-from-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected>8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="sc-from-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="sc-from-am" onclick="scSetAmPm('from','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="sc-from-pm" onclick="scSetAmPm('from','PM')">PM</button>
-            </div>
+  <!-- ══ MAIN APP ══ -->
+  <div id="app-screen">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-mark">
+            <img src="logo.png" alt="SPT Logo">
           </div>
-        </div>
-        <div class="ampm-arrow" style="padding-bottom:8px">→</div>
-        <div class="ampm-field" style="flex:1">
-          <label>Until</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="sc-to-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="sc-to-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="sc-to-am" onclick="scSetAmPm('to','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="sc-to-pm" onclick="scSetAmPm('to','PM')">PM</button>
-            </div>
-          </div>
+          <div class="sidebar-logo-text">SomPelTech</div>
         </div>
       </div>
-      <div class="aa-duration-display" id="sc-duration-display">Total Duration: —</div>
-    </div>
-
-        <!-- Sound -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🔔 Alarm Sound</div>
-      <div class="sound-opts" id="aa-sounds">
-        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">🔔 Bell</button>
-        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
-        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
-        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
-        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
-        <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
-      </div>
-    </div>
-
-
-    <!-- Plan Your Day -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">📝 Plan for the day <span style="font-weight:400;color:var(--hint);text-transform:none">— what to do?</span></div>
       
-      <!-- Checklist items container -->
-      <div id="sc-checklist" class="sc-checklist"></div>
+        
+        <nav class="sidebar-nav">
+        <button class="nav-item active" data-page="home" onclick="navigateTo('home', this)">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </span>
+          <span>Home</span>
+        </button>
 
-      <!-- Add task input -->
-      <div class="sc-task-input-row">
-        <input type="text" id="sc-task-input" class="aa-custom-input sc-task-input" placeholder="Type a task and press Enter or ＋…" onkeydown="scHandleTaskKey(event)">
-        <button type="button" class="sc-add-task-btn" onclick="scAddTask()">＋</button>
+        <button class="nav-item" data-page="products" onclick="navigateTo('products', this)">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 3H8l-2 4h12l-2-4z"/></svg>
+          </span>
+          <span>Products</span>
+        </button>
+
+        <button class="nav-item" data-page="about" onclick="navigateTo('about', this)">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </span>
+          <span>About</span>
+        </button>
+        <button class="nav-item" data-page="findings" onclick="navigateTo('findings', this)">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </span>
+          <span>Findings</span>
+        </button>
+
+        <button class="nav-item" data-page="contact" onclick="navigateTo('contact', this)">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.8a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </span>
+          <span>Contact</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-footer-text">Gedu College of Business Studies<br>Bhutan Data Scientists Pvt. Ltd. · 2026</div>
+      </div>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="main-content" id="main-content">
+
+      <!-- Greeting bar -->
+      <div class="greeting-bar" id="greeting-bar">
+        <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span id="greeting-text"></span>
+        <!-- <button class="greeting-bar-signout" onclick="doSignOut()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button> -->
       </div>
 
-      <!-- Quick-add suggestions -->
-      <div class="sc-quick-chips" id="sc-quick-chips">
-        <span class="sc-chips-label">Quick add:</span>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Review notes</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Warm up</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Drink water</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">No phone</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Stretch</button>
-        <button type="button" class="sc-quick-chip" onclick="scQuickAdd(this)">Meditate</button>
-      </div>
-    </div>
+      <!-- ── PAGE: HOME ── -->
+      <div class="page" id="page-home">
+        <div class="page-inner home-hero-inner">
 
-    
+          <!-- Hero eyebrow -->
+          <div class="hero-eyebrow">
+            <span class="hero-eyebrow"></span>
+            SomPel Tech · Bhutan Lifestyle &amp; Wellbeing 2026
+          </div>
 
-    <!-- Save -->
-    <div class="add-alarm-section" style="border-bottom:none">
-      <button class="auth-btn" onclick="saveSchedule()" id="sc-save-btn">💾 Save Schedule</button>
-      <div id="sc-msg" class="auth-msg" style="margin-top:10px"></div>
-    </div>
-  </div>
-</div>
+           <h1 class="page-title">Improve your <em>sleep quality & day energy level</em></h1>
+           <p> A data-driven wellbeing project focused on healthier routines and better productivity.</p> <br><br>
+           
 
-<!-- ── ADD ALARM MODAL ── -->
-<div id="add-alarm-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box add-alarm-box">
-    <div class="add-alarm-header">
-      <div class="add-alarm-title">⏰ Set Alarm</div>
-      <button class="add-alarm-close" onclick="closeAddAlarmModal()">✕</button>
-    </div>
+          <!-- Bio card -->
+          <div class="hero-bio-card">
+            <div class="hero-bio-avatar"onclick="this.closest('.hero-bio-card').classList.toggle('expanded')">WHO?</div>
+            <div class="hero-bio-body">
+              <div class="hero-bio-name">Sonam Peldon</div>
+              <div class="hero-bio-role">Gedu College of Business Studies intern &amp; Data Practitioner · Bhutan Data Scientists Pvt. Ltd.</div>
+              <p class="hero-bio-text">
+                 <br>
+                  I was an undergraduate student pursuing a Bachelor of Business Intelligence and Information Systems, majoring in Financial Engineering at
+                  <a href="https://www.gcbs.edu.bt/index.php" target="_blank">
+                      Gedu College of Business Studies
+                  </a>.
+                  <br><br>
+                  As part of the academic requirements, students were required to complete a six-month internship to gain practical experience and apply the theoretical knowledge acquired during their studies. Accordingly, I joined
+                  <a href="https://datascientists.bt/?fbclid=IwY2xjawRb1fNleHRuA2FlbQIxMABicmlkETFZVGRUdmMwZEhtOWthdnZqc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHsEyhAR88e_PLyOP5OaAdjT5j3hLZk-MIY0WBqpfM6a0eirqHi4ZVW4Vo5Pe_aem_Ggwchuh_rEYZZZfvxkM77w" target="_blank">
+                      Bhutan Data Scientists Pvt. Ltd. as a Data Practitioner intern.
+                  </a>
+                 
+                  <br><br>
 
-    <!-- Time range -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-row">
-        <div class="ampm-field" style="flex:1">
-          <label>From</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="aa-from-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected>8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="aa-from-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="aa-from-am" onclick="aaSetAmPm('from','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="aa-from-pm" onclick="aaSetAmPm('from','PM')">PM</button>
+                 During the internship, we were assigned to undertake a project based on our area of interest. I chose to explore the issue of sleep quality and daytime energy levels, as many individuals, including myself, experienced fatigue despite spending adequate time resting. These challenges were often linked to irregular routines, excessive screen use before bedtime, and imbalanced work and sleep patterns.
+
+                <br><br>
+
+                 To address this, it focused on developing a data-driven tool that helped individuals improve their sleep quality and overall energy levels through personalized insights and recommendations based on user input.
+
+                 <br><br>
+                 Building on these insights, I developed a web-based 
+                 <span class="link-like" onclick="navigateTo('products')">
+                    solutions
+                  </span>
+                 designed to help individuals and communities better understand their habits and make informed improvements to their daily routines and overall well-being. 
+              </p>
+              
+              <!-- ───── CARD ROW ───── -->
+              <div class="hero-card-row">
+                <div class="hero-bio-card clickable-card" onclick="navigateTo('findings')">
+                  <div class="hero-bio-avatar">📊</div>
+                  <div class="hero-bio-body">
+                  <div class="hero-bio-name">Explore Findings</div>
+                  <!-- <div class="hero-bio-role">Discover insights from the research</div> -->
+                </div>
+                </div>
+
+                  <!-- Nge Routine card -->
+                <div class="hero-bio-card clickable-card" onclick="navigateTo('products')">
+                  <div class="hero-bio-avatar">🌙</div>
+                  <div class="hero-bio-body">
+                  <div class="hero-bio-name">Nge Routine</div>
+                </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="ampm-arrow" style="padding-bottom:8px">→</div>
-        <div class="ampm-field" style="flex:1">
-          <label>Until</label>
-          <div class="ampm-wrap">
-            <select class="ampm-hour" id="aa-to-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-            <span class="ampm-sep">:</span>
-            <select class="ampm-min" id="aa-to-m"><option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
-            <div class="ampm-toggle">
-              <button type="button" class="ampm-btn sel" id="aa-to-am" onclick="aaSetAmPm('to','AM')">AM</button>
-              <button type="button" class="ampm-btn" id="aa-to-pm" onclick="aaSetAmPm('to','PM')">PM</button>
+      </div> 
+      <!-- ── END PAGE: HOME ── -->
+
+      <!-- ── PAGE: ABOUT ── -->
+      <div class="page" id="page-about">
+        <div class="page-inner">
+
+          <!-- ══ SECTION 1: About SomPel Tech (moved from Home) ══ -->
+          <div class="page-eyebrow">SomPel Tech · Founded 2026</div>
+
+          <!-- Pill tabs -->
+          <div class="home-tabs">
+
+              <!-- Vision shown first -->
+              <button class="home-tab active about-tab"
+                  onclick="showAboutFirst(this)">
+                  <span class="tab-icon">  ☰ </span>  About  
+              </button>
+
+              <!-- Other tabs hidden initially -->
+              <div class="other-home-tabs" id="otherHomeTabs">
+                  <button class="home-tab" onclick="showHomeSection('vision', this)">
+                      <span class="tab-icon">Vision</span> 
+                  </button>
+
+                  <button class="home-tab" onclick="showHomeSection('mission', this)">
+                      <span class="tab-icon">Mission</span> 
+                  </button>
+
+                  <button class="home-tab" onclick="showHomeSection('objectives', this)">
+                      <span class="tab-icon">Objectives</span> 
+                  </button>
+
+                  <button class="home-tab" onclick="showHomeSection('values', this)">
+                      <span class="tab-icon">Values</span> 
+                  </button>
+              </div>
+          </div>
+
+          <!-- ── ABOUT ── -->
+          <div id="home-about" class="home-section active">
+            <div class="section-panel section-panel--about">
+              <div class="sp-header">
+                <div class="sp-badge sp-badge--amber">Origin Story</div>
+              </div>
+              <p class="sp-lead">
+                SomPel Tech was founded during a six-month internship at Bhutan Data Scientists Pvt. Ltd., where I was encouraged to create a company identity as part of a project.
+              </p>
+              <p class="sp-body">
+                At first, I proposed the name and chose a more personal and meaningful name: <strong>SomPel Tech</strong>.
+              </p>
+
+              <div class="name-meaning-row">
+                <div class="name-meaning-card name-meaning--som">
+                  <div class="nm-letter">Som</div>
+                  <div class="nm-label">from Sonam</div>
+                  <div class="nm-desc">Merit · Virtue · Good karma · Good deeds</div>
+                </div>
+                <div class="nm-plus">+</div>
+                <div class="name-meaning-card name-meaning--pel">
+                  <div class="nm-letter">Pel</div>
+                  <div class="nm-label">from Peldon</div>
+                  <div class="nm-desc">Glorious · Prosperous · Blessed with fortune</div>
+                </div>
+                <div class="nm-plus">=</div>
+                <div class="name-meaning-card name-meaning--result">
+                  <div class="nm-letter">SomPel</div>
+                  <div class="nm-label">Tech</div>
+                  <div class="nm-desc">Purpose · Positivity · Meaningful impact</div>
+                </div>
+              </div>
+
+              <p class="sp-body">
+                SomPel Tech reflects of using technology to create solutions that contribute to well-being, growth, and innovation in society.
+              </p>
             </div>
+          </div>
+          <!-- ── VISION ── -->
+          <div id="home-vision" class="home-section">
+            <div class="section-panel section-panel--vision">
+              <div class="sp-header">
+                <div class="sp-badge sp-badge--sky">Vision Statement</div>
+              </div>
+
+              <div class="vision-statement-box">
+                To create a healthier and more balanced society in Bhutan by
+                transforming how people understand and manage sleep, lifestyle,
+                and wellbeing through data-driven technology.
+              </div>
+            </div>
+          </div>
+          <!-- ── MISSION ── -->
+          <div id="home-mission" class="home-section">
+            <div class="section-panel section-panel--mission">
+              <div class="sp-header">
+                <div class="sp-badge sp-badge--green">Mission Statement</div>
+              </div>
+
+              <div class="mission-statement-box">
+                To develop accessible and user-friendly digital solutions that
+                analyze lifestyle habits and provide personalized insights to
+                improve sleep quality and daily energy.
+              </div>
+            </div>
+          </div>
+
+          <!-- ── OBJECTIVES ── -->
+          <div id="home-objectives" class="home-section">
+            <div class="section-panel section-panel--objectives">
+              <div class="sp-header">
+                <div class="sp-badge sp-badge--orange">Objectives</div>
+              </div>
+              <p class="sp-lead">To develop data-driven solutions that improve sleep quality and daily energy among urban and rural populations in Bhutan.</p>
+              <div class="objectives-list">
+                <div class="obj-item">
+                  <div class="obj-check">✔</div>
+                  <div class="obj-text">
+                    <strong>Track &amp; Analyze</strong>
+                    Design tools that track and analyze lifestyle patterns — screen time, sleep, and work habits.
+                  </div>
+                </div>
+                <div class="obj-item">
+                  <div class="obj-check">✔</div>
+                  <div class="obj-text">
+                    <strong>Personalized Recommendations</strong>
+                    Provide personalized and actionable recommendations for improving sleep health.
+                  </div>
+                </div>
+                <div class="obj-item">
+                  <div class="obj-check">✔</div>
+                  <div class="obj-text">
+                    <strong>Generate Insights</strong>
+                    Generate insights that support individuals, organizations, and policymakers.
+                  </div>
+                </div>
+                <div class="obj-item">
+                  <div class="obj-check">✔</div>
+                  <div class="obj-text">
+                    <strong>Promote Awareness</strong>
+                    Promote awareness of healthy digital and sleep habits through technology.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── VALUES ── -->
+          <div id="home-values" class="home-section">
+            <div class="section-panel section-panel--values">
+              <div class="sp-header">
+                <div class="sp-badge sp-badge--purple">Core Values</div>
+              </div>
+              <div class="wisp-banner">
+                <span class="wisp-letter wisp-w">W</span>
+                <span class="wisp-letter wisp-i">I</span>
+                <span class="wisp-letter wisp-s">S</span>
+                <span class="wisp-letter wisp-p">P</span>
+                <span class="wisp-word">Wellbeing · Insight · Purpose · Discipline</span>
+              </div>
+              <div class="values-grid">
+                <div class="value-card value-card--w">
+                  <div class="vc-letter">W</div>
+                  <h3 class="vc-title">Wellbeing</h3>
+                  <p class="vc-desc">Prioritizing physical and mental health in all solutions we build.</p>
+                </div>
+                <div class="value-card value-card--i">
+                  <div class="vc-letter">I</div>
+                  <h3 class="vc-title">Insight</h3>
+                  <p class="vc-desc">Using data to generate meaningful and useful understanding.</p>
+                </div>
+                <div class="value-card value-card--s">
+                  <div class="vc-letter">S</div>
+                  <h3 class="vc-title">Purpose</h3>
+                  <p class="vc-desc">Creating technology with clear intention and real social impact.</p>
+                </div>
+                <div class="value-card value-card--p">
+                  <div class="vc-letter">D</div>
+                  <h3 class="vc-title">Self-Discipline</h3>
+                  <p class="vc-desc">Maintaining consistency, focus, and responsibility in all work.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <!-- ── END PAGE: ABOUT ── -->
+
+      <!-- ── PAGE: FINDINGS ── -->
+      <div class="page" id="page-findings">
+        <div class="page-inner">
+          <div class="page-eyebrow">Project</div>
+          <h1 class="page-title">What the <em>Data Revealed</em></h1>
+          <div class="page-divider"></div>
+
+          <div class="about-greeting-card" id="findings-greeting-card">
+            <div class="about-greeting-icon">📊</div>
+            <p id="findings-greeting-text"></p>
+          </div>
+          
+            <div class="project-resource-card" id="tableau-resource-card">
+              <div class="prc-header">
+                <div class="prc-icon prc-icon--tableau">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </div>
+                <div class="prc-title-area">
+                  <div class="prc-label">Interactive Visualisation</div>
+                  <div class="prc-name">Tableau Public Story</div>
+                </div>
+                <div class="prc-actions">
+                  <button class="prc-toggle-btn" onclick="togglePdfReader('tableau-preview-viewer', this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
+                    Preview
+                  </button>
+                  <a class="prc-download-btn" href="https://public.tableau.com/views/LifestyledifferencesinBhutanUrban-ruralstory/Story1" target="_blank">
+                    
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Open on Tableau
+                  </a>
+                </div>
+              </div>
+              <div class="prc-pdf-viewer" id="tableau-preview-viewer" style="display:none;">
+                <iframe
+                src="https://public.tableau.com/views/LifestyledifferencesinBhutanUrban-ruralstory/Story1?:embed=y&:showVizHome=no&:toolbar=yes&:tabs=no"
+                  style="width:100%;height:700px;border:none;border-radius:8px;"
+                  allowfullscreen
+                  title="Bhutan Lifestyle Differences – Tableau Story"> -->
+              </iframe>
+              </div>
+            </div>
+
+            <div class="project-resource-card" id="report-resource-card">
+            <div class="prc-header">
+              <div class="prc-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+              </div>
+
+              <div class="prc-title-area">
+                <div class="prc-label">Entreprenurial Report</div>
+                <div class="prc-name">Bhutan Lifestyle &amp; Wellbeing 2026</div>
+              </div>
+
+              <div class="prc-actions">
+                <button class="prc-toggle-btn" onclick="togglePdfReader('report-pdf-viewer', this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                  </svg>
+                  Preview
+                </button>
+
+                <a class="prc-download-btn"
+                  href="Reporr.pdf" 
+                  target="_blank">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download PDF
+                </a>
+              </div>
+            </div>
+
+            <div class="prc-pdf-viewer" id="report-pdf-viewer" style="display:none;">
+              <iframe
+                src="Reporr.pdf"
+                style="width:100%; height:800px; border:none; border-radius:8px;"
+                title="SomPel Tech Research Report 2026">
+              </iframe>
+            </div>
+          </div>
+
+
+          <!-- Clickable index table -->
+          <div class="table-box findings-index-box">
+            <table class="ov-table">
+              <thead>
+                <tr><th colspan="2" class="table-title">Overview of the Key Findings</th></tr>
+              </thead>
+              <tbody>
+                <tr class="findings-index-row" onclick="scrollToFinding('finding-1')"><td class="td-num">1</td><td>Respondent Distribution</td></tr>
+                <tr class="findings-index-row" onclick="scrollToFinding('finding-2')"><td class="td-num">2</td><td>Core Lifestyle Differences</td></tr>
+                <tr class="findings-index-row" onclick="scrollToFinding('finding-3')"><td class="td-num">3</td><td>Correlation Insights</td></tr>
+                <tr class="findings-index-row" onclick="scrollToFinding('finding-4')"><td class="td-num">4</td><td>Habits Believed to Improve Sleep</td></tr>
+                <tr class="findings-index-row" onclick="scrollToFinding('finding-6')"><td class="td-num">5</td><td>Market Readiness</td></tr>
+                <tr class="findings-index-row" onclick="scrollToFinding('finding-7')"><td class="td-num"></td><td>Key Takeaways</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="findings-grid">
+
+            <!-- ── FINDING 1: Respondent Distribution ── -->
+            <div class="finding-card finding-card--wide" id="finding-1">
+              <div class="finding-number">01</div>
+              <h3 class="finding-title">Who did we survey?</h3>
+              <p class="finding-text" style="margin-bottom:20px;">We collected 366 responses from individuals living in urban, rural, and semi-urban areas of Bhutan. After removing one response from a non-resident, 358 were used for analysis. Most people who responded were from cities which reflects how Bhutan's population is shifting towards urban areas.</p>
+
+              <!-- Bar chart: respondent split -->
+              <div class="fc-chart-wrap">
+                <div class="fc-chart-title">Where respondents are from</div>
+                <div class="fc-bars">
+                  <div class="fc-bar-row">
+                    <div class="fc-bar-label">Urban</div>
+                    <div class="fc-bar-track"><div class="fc-bar-fill fc-fill--urban" style="width:62%"></div></div>
+                    <div class="fc-bar-val">62%</div>
+                  </div>
+                  <div class="fc-bar-row">
+                    <div class="fc-bar-label">Rural</div>
+                    <div class="fc-bar-track"><div class="fc-bar-fill fc-fill--rural" style="width:27%"></div></div>
+                    <div class="fc-bar-val">27%</div>
+                  </div>
+                  <div class="fc-bar-row">
+                    <div class="fc-bar-label">Semi-urban</div>
+                    <div class="fc-bar-track"><div class="fc-bar-fill fc-fill--semi" style="width:11%"></div></div>
+                    <div class="fc-bar-val">11%</div>
+                  </div>
+                </div>
+                <div class="fc-chart-note">Based on 358 valid responses · Bhutan 2026</div>
+              </div>
+
+              <div class="fc-stat-pills">
+                <div class="fc-pill fc-pill--blue"><span class="fc-pill-num">366</span><span class="fc-pill-lbl">Total collected</span></div>
+                <div class="fc-pill fc-pill--green"><span class="fc-pill-num">358</span><span class="fc-pill-lbl">Used in analysis</span></div>
+                <div class="fc-pill fc-pill--amber"><span class="fc-pill-num">Urban</span><span class="fc-pill-lbl">Majority group</span></div>
+                <div class="fc-pill fc-pill--muted"><span class="fc-pill-num">2026</span><span class="fc-pill-lbl">Study year</span></div>
+              </div>
+            </div>
+
+            <!-- ── FINDING 2: Core Lifestyle Differences ── -->
+            <div class="finding-card finding-card--wide" id="finding-2">
+              <div class="finding-number">02</div>
+              <h3 class="finding-title">How do city and village life differ?</h3>
+              <p class="finding-text" style="margin-bottom:20px;">Urban people tend to work a bit longer and do more mental work (like office jobs). Rural people use screens a little more before bed and sleep slightly longer but the sleep difference is so small it barely matters. The real difference is <em>what kind</em> of work people do, not how long they sleep.</p>
+
+              <!-- Side-by-side comparison -->
+              <div class="fc-compare-wrap">
+                <div class="fc-compare-header">
+                  <div class="fc-compare-col-hd fc-hd--urban">Urban</div>
+                  <div class="fc-compare-metric-hd">Habit</div>
+                  <div class="fc-compare-col-hd fc-hd--rural">Rural</div>
+                </div>
+                <div class="fc-compare-row">
+                  <div class="fc-compare-val fc-val--urban fc-val--higher">Longer ↑</div>
+                  <div class="fc-compare-metric">Work Hours</div>
+                  <div class="fc-compare-val fc-val--rural">Shorter</div>
+                </div>
+                <div class="fc-compare-row">
+                  <div class="fc-compare-val fc-val--urban">Less</div>
+                  <div class="fc-compare-metric">Screen Before Bed</div>
+                  <div class="fc-compare-val fc-val--rural fc-val--higher">More ↑</div>
+                </div>
+                <div class="fc-compare-row">
+                  <div class="fc-compare-val fc-val--urban">Shorter</div>
+                  <div class="fc-compare-metric">Sleep Duration</div>
+                  <div class="fc-compare-val fc-val--rural fc-val--higher">Slightly more ↑</div>
+                </div>
+                <div class="fc-compare-row">
+                  <div class="fc-compare-val fc-val--urban fc-val--higher">Mental / Desk ↑</div>
+                  <div class="fc-compare-metric">Type of Work</div>
+                  <div class="fc-compare-val fc-val--rural">Physical / Manual</div>
+                </div>
+              </div>
+              <!-- <div class="fc-chart-note" style="margin-top:10px;">↑ indicates the relatively higher group for that habit</div> -->
+            </div>
+
+            <!-- ── FINDING 3: Correlation Insights ── -->
+            <div class="finding-card finding-card--wide" id="finding-3">
+              <div class="finding-number">03</div>
+              <h3 class="finding-title">What actually affects your sleep?</h3>
+              <p class="finding-text" style="margin-bottom:20px;">We looked at three habits to see if they help or hurt sleep quality and daily energy. Think of it simply: <strong style="color:#C0392B">Red = bad for sleep</strong>, <strong style="color:#8A8480">Grey = no real effect</strong>, <strong style="color:#2F7A54">Green = slightly good</strong>.</p>
+
+              <!-- Heatmap-style table -->
+              <div class="fc-heatmap-wrap">
+                <div class="fc-heatmap-title">How each habit affects sleep & energy</div>
+                <table class="fc-heatmap">
+                  <thead>
+                    <tr>
+                      <th>Habit</th>
+                      <th>Urban</th>
+                      <th>Rural</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="fc-hm-habit">Screen use before bed</td>
+                      <td><span class="fc-hm-badge fc-hm--bad">😴 Hurts sleep</span></td>
+                      <td><span class="fc-hm-badge fc-hm--worse">😴😴 Hurts more</span></td>
+                    </tr>
+                    <tr>
+                      <td class="fc-hm-habit">Longer work hours</td>
+                      <td><span class="fc-hm-badge fc-hm--neutral">😐 No effect</span></td>
+                      <td><span class="fc-hm-badge fc-hm--bad">😴 Mild harm</span></td>
+                    </tr>
+                    <tr>
+                      <td class="fc-hm-habit">Sleeping longer</td>
+                      <td><span class="fc-hm-badge fc-hm--neutral">😐 No effect</span></td>
+                      <td><span class="fc-hm-badge fc-hm--good">🙂 Slightly helps</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="fc-insight-box">
+                Putting your phone down before bed is the single most important thing you can do for better sleep in both cities and villages.
+              </div>
+            </div>
+
+            <!-- ── FINDING 4: Habits Believed to Improve Sleep ── -->
+            <div class="finding-card finding-card--wide" id="finding-4">
+              <div class="finding-number">04</div>
+              <h3 class="finding-title">What do people think helps them sleep better?</h3>
+              <p class="finding-text" style="margin-bottom:20px;">We asked people: <em>"What habits do you believe improve your sleep?"</em> Four clear answers came up again and again. Here they are, ranked by how often people mentioned them:</p>
+
+              <!-- Ranked horizontal bars -->
+              <div class="fc-chart-wrap">
+                <div class="fc-chart-title">Top habits people believe improve sleep</div>
+                <div class="fc-bars">
+                  <div class="fc-bar-row">
+                    <div class="fc-bar-label">Less screen time before bed</div>
+                    <div class="fc-bar-track"><div class="fc-bar-fill fc-fill--rank1" style="width:29.209%"></div></div>
+                    <div class="fc-bar-val">29.209%</div>
+                  </div>
+                  <div class="fc-bar-row">
+                    <div class="fc-bar-label">Stress-free environment     </div>
+                    <div class="fc-bar-track"><div class="fc-bar-fill fc-fill--rank2" style="width:25.612%"></div></div>
+                    <div class="fc-bar-val">25.612%</div>
+                  </div>
+                  <div class="fc-bar-row">
+                    <div class="fc-bar-label"> Same bedtime every night    </div>
+                    <div class="fc-bar-track"><div class="fc-bar-fill fc-fill--rank3" style="width:23.885%"></div></div>
+                    <div class="fc-bar-val">23.885%</div>
+                  </div>
+                  <div class="fc-bar-row">
+                    <div class="fc-bar-label">Relaxing before sleep       </div>
+                    <div class="fc-bar-track"><div class="fc-bar-fill fc-fill--rank4" style="width:21.295%"></div></div>
+                    <div class="fc-bar-val">21.295%</div>
+                  </div>
+                </div>
+                <div class="fc-chart-note">Ranked by frequency of mention across all 358 respondents</div>
+              </div>
+            </div> 
+
+            <!-- ── FINDING 6: Market Readiness (moved from sidebar) ── -->
+            <div class="finding-card finding-card--wide" id="finding-6">
+              <div class="finding-number">05</div>
+              <h3 class="finding-title">Market Readiness. Is Bhutan Ready for Wellness Tools?</h3>
+              <p class="finding-text" style="margin-bottom:20px;">We asked participants: <em>"Would you use a sleep or wellness tool?"</em> 358 respondents · Bhutan 2026</p>
+
+              <!-- Coloured stat cards -->
+              <div class="mkt-cards">
+                <div class="mkt-card mkt-card--green">
+                  <div class="mkt-card-pct">58.42%</div>
+                  <div class="mkt-card-label">Ready to use it now</div>
+                  <div class="mkt-card-bar-track">
+                    <div class="mkt-card-bar-fill" data-target="58.42" style="width:0"></div>
+                  </div>
+                </div>
+                <div class="mkt-card mkt-card--amber">
+                  <div class="mkt-card-pct">36.6%</div>
+                  <div class="mkt-card-label">Open, but need convincing</div>
+                  <div class="mkt-card-bar-track">
+                    <div class="mkt-card-bar-fill" data-target="36.6" style="width:0"></div>
+                  </div>
+                </div>
+                <div class="mkt-card mkt-card--red">
+                  <div class="mkt-card-pct">4.96%</div>
+                  <div class="mkt-card-label">Not interested</div>
+                  <div class="mkt-card-bar-track">
+                    <div class="mkt-card-bar-fill" data-target="4.96" style="width:0"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Big stat -->
+              <div class="mkt-big-stat">
+                <div class="mkt-big-num">95%+</div>
+                <div class="mkt-big-label">said Yes or Maybe which is not a maybe market, that is a waiting market</div>
+              </div>
+
+              <div class="fc-insight-box" style="margin-top:20px;">
+                🤔 <strong>Why are there more "Maybe" people?</strong> They are not sure. Most haven't tried a wellness tool before. That 36.6% is not a wall, it's a door waiting to be opened with the right message.
+              </div>
+
+              <div class="fc-insight-box" style="margin-top:12px;">
+                🎯 <strong>The opportunity is clear.</strong> The demand exists. Most people in Bhutan don't know a sleep tool is even possible. That gap between wanting better sleep and knowing how to get it is exactly where SomPel Tech steps in.
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Key Takeaways -->
+          <div class="finding-card finding-card--wide" id="finding-7">
+            <div class="finding-number"></div>
+            <h3 class="finding-title">Key Takeaways</h3>
+            <p class="finding-text" style="margin-bottom:20px;">Here is what all the findings add up to, in plain language:</p>
+            <div class="fc-takeaways">
+              <div class="fc-takeaway-item">
+                <div class="fc-takeaway-icon">1</div>
+                <div class="fc-takeaway-body">Screen use is the biggest problem. It hurts sleep quality and daytime energy for everyone.</div>
+              </div>
+              <div class="fc-takeaway-item">
+                <div class="fc-takeaway-icon">2</div>
+                <div class="fc-takeaway-body">City and village lifestyles are measurably different. Urban people work more; rural people use screens more at night. Both groups struggle with sleep.</div>
+              </div>
+              <div class="fc-takeaway-item">
+                <div class="fc-takeaway-icon">3</div>
+                <div class="fc-takeaway-body">Sleeping longer doesn't automatically fix things. How well people sleep matters more than how long.</div>
+              </div>
+              <div class="fc-takeaway-item">
+                <div class="fc-takeaway-icon">4</div>
+                <div class="fc-takeaway-body">People want a simple tool. No fancy gadgets, just something easy that fits into daily life.</div>
+              </div>
+              <div class="fc-takeaway-item">
+                <div class="fc-takeaway-icon">5</div>
+                <div class="fc-takeaway-body">Over 95% are open to a wellness app. The demand is real. The main barriers are awareness and access.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <!-- ── END PAGE: FINDINGS ── -->
+
+      <!-- ── PAGE: files TABLEAU STORY ── -->
+      <div class="page" id="page-tableau">
+        <div class="page-inner">
+          <div class="page-eyebrow">Tableau Story</div>
+          <h1 class="page-title"> Files Available </em></h1>
+          <div class="page-divider"></div>
+
+          <div class="about-greeting-card" id="files-greeting-card">
+            <div class="about-greeting-icon">📊</div>
+            <p id="files-greeting-text"></p>
+          </div>
+
+          <!-- ── Tableau Public card ──
+          <div class="project-resource-card" id="tableau-resource-card">
+            <div class="prc-header">
+              <div class="prc-icon prc-icon--tableau">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </div>
+              <div class="prc-title-area">
+                <div class="prc-label">Interactive Visualisation</div>
+                <div class="prc-name">Tableau Public Story</div>
+              </div>
+              <div class="prc-actions">
+                <button class="prc-toggle-btn" onclick="togglePdfReader('tableau-preview-viewer', this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
+                  Preview
+                </button>
+                <a class="prc-download-btn" href="https://public.tableau.com/views/LifestyledifferencesinBhutanUrban-ruralstory/Story1" target="_blank">
+                  
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Open on Tableau
+                </a>
+              </div>
+            </div>
+            <div class="prc-pdf-viewer" id="tableau-preview-viewer" style="display:none;">
+              <iframe
+               src="https://public.tableau.com/views/LifestyledifferencesinBhutanUrban-ruralstory/Story1?:embed=y&:showVizHome=no&:toolbar=yes&:tabs=no"
+                style="width:100%;height:700px;border:none;border-radius:8px;"
+                allowfullscreen
+                title="Bhutan Lifestyle Differences – Tableau Story"> -->
+            <!-- </iframe> -->
+
+            <!-- </div> -->
+          <!-- </div> --> 
+
+          <!-- ── Research Report card ── -->
+          <!-- <div class="project-resource-card" id="report-resource-card">
+            <div class="prc-header">
+              <div class="prc-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+              </div>
+
+              <div class="prc-title-area">
+                <div class="prc-label">Entreprenurial Report</div>
+                <div class="prc-name">Bhutan Lifestyle &amp; Wellbeing 2026</div>
+              </div>
+
+              <div class="prc-actions">
+                <button class="prc-toggle-btn" onclick="togglePdfReader('report-pdf-viewer', this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                  </svg>
+                  Preview
+                </button>
+
+                <a class="prc-download-btn"
+                  href="Reporr.pdf" 
+                  target="_blank">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download PDF
+                </a>
+              </div>
+            </div>
+
+            <div class="prc-pdf-viewer" id="report-pdf-viewer" style="display:none;">
+              <iframe
+                src="Reporr.pdf"
+                style="width:100%; height:800px; border:none; border-radius:8px;"
+                title="SomPel Tech Research Report 2026">
+              </iframe>
+            </div>
+          </div> -->
+        </div>
+      </div>
+      
+      <!-- page: products -->
+
+      <div class="page active" id="page-products">
+        <div class="page-inner">
+          <div class="page-eyebrow">Products</div>
+          <h1 class="page-title">Wake Up <em>Energized. </em> Live Your <em> Best Day. </em></h1>
+          <div class="page-divider"></div>
+
+          <!-- Hero headline — after intro -->
+          <h1 class="hero-title">
+          </h1>
+
+          <div class = "prod-overview-grid">
+            <div class="prod-card prod-card-primary">
+              <div class="prod-card-badge">Value Creation </div>
+              
+              <h3 class="prod-card-title"> Why do individuals feel tired despite getting enough sleep?</h3>
+              
+              <p class="prod-card-description">A user-friendly tool that allows you to quickly snapshot your sleep quality and day energy level and get personalizaed recommendation.</p>
+              <button class="prod-card-button"
+                onclick="window.open('https://saypel44.github.io/NgeRoutineTool/?v=4', '_blank')">
+                  Try Nge Routine
+              </button>
+             </div>
+            </div>
+
+            <br><br>
+                
+            <!-- Bio card -->
+            <div class="hero-bio-card">
+              <div class="hero-bio-body">            
+                <div class="hero-bio-text">
+                  <p>
+                  Read the story to discover how small changes can lead to better sleep, improved energy, and a healthier lifestyle.
+                  </p>
+                  <br>
+                  <div class="story-actions">
+                    <button class="prc-download-btn" onclick="toggleStoryPdf(this)">
+                      ⬇ Read as PDF
+                    </button>
+                    <div id="story-pdf-viewer" class="prc-pdf-viewer" style="display:none;">
+                      <iframe src="Story.pdf" class="pdf-iframe"></iframe>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div> 
+        </div><!-- /.page-inner -->
+      <!-- </div>/#page-products  -->
+  
+
+        <!-- ── PAGE: CONTACT ── -->
+      <div class="page" id="page-contact">
+        <div class="page-inner">
+          <div class="page-eyebrow">Get in Touch</div>
+          <h1 class="page-title">Contact <em>Us</em></h1>
+          <div class="page-divider"></div>
+
+          <div class="about-greeting-card">
+            <div class="about-greeting-icon"></div>
+            <p>Have a question, feedback, or want to collaborate? Reach out through any of the channels below.</p>
+          </div>
+
+          <div class="findings-grid" style="margin-top:28px;">
+
+            <!-- Email -->
+            <a class="contact-card" href="mailto:sompeltech@gmail.com">
+              <div class="contact-card-icon contact-icon--email">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <div class="contact-card-body">
+                <div class="contact-card-label">Email</div>
+                <div class="contact-card-value">sompeltech@gmail.com</div>
+                <div class="contact-card-hint">Click to open Gmail →</div>
+              </div>
+            </a>
+
+            <!-- Phone -->
+            <a class="contact-card" href="tel:+97517847878">
+              <div class="contact-card-icon contact-icon--phone">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.8a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </div>
+              <div class="contact-card-body">
+                <div class="contact-card-label">Phone</div>
+                <div class="contact-card-value">17847878</div>
+                <div class="contact-card-hint">Click to call →</div>
+              </div>
+            </a>
+
+            <!-- LinkedIn -->
+            <a class="contact-card" href="https://www.linkedin.com/in/sonam-peldon-3064063a1" target="_blank">
+              <div class="contact-card-icon contact-icon--linkedin">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+              </div>
+              <div class="contact-card-body">
+                <div class="contact-card-label">LinkedIn</div>
+                <div class="contact-card-value">Sonam Peldon</div>
+                <div class="contact-card-hint">View profile →</div>
+              </div>
+            </a>
+
+            <!-- GitHub -->
+            <a class="contact-card" href="https://github.com/saypel44" target="_blank">
+              <div class="contact-card-icon contact-icon--github">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              </div>
+              <div class="contact-card-body">
+                <div class="contact-card-label">GitHub</div>
+                <div class="contact-card-value">saypel44 · Sonam Peldon</div>
+                <div class="contact-card-hint">View repositories →</div>
+              </div>
+            </a>
+           </div>
           </div>
         </div>
       </div>
-      <div class="aa-duration-display" id="aa-duration-display">Total Duration: —</div>
-    </div>
-
-    <!-- Purpose / category -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🎯 Alarm Purpose</div>
-      <div class="aa-categories" id="aa-categories">
-        <button type="button" class="aa-cat-btn" data-cat="Studies" onclick="aaSelectCat(this)">📚 Studies</button>
-        <button type="button" class="aa-cat-btn" data-cat="Sleep" onclick="aaSelectCat(this)">😴 Sleep</button>
-        <button type="button" class="aa-cat-btn" data-cat="Screen Use" onclick="aaSelectCat(this)">📱 Screen Use</button>
-        <button type="button" class="aa-cat-btn" data-cat="Exercise" onclick="aaSelectCat(this)">🏃 Exercise</button>
-        <button type="button" class="aa-cat-btn" data-cat="Meals" onclick="aaSelectCat(this)">🍽 Meals</button>
-        <button type="button" class="aa-cat-btn" data-cat="Other" onclick="aaSelectCat(this)">✍ Other</button>
-      </div>
-      <input type="text" class="aa-custom-input" id="aa-custom-activity" placeholder="Enter your activity or purpose…" oninput="aaClearCatIfTyping()">
-    </div>
-
-    <!-- Sound -->
-    <div class="add-alarm-section">
-      <div class="add-alarm-section-lbl">🔔 Alarm Sound</div>
-      <div class="sound-opts" id="aa-sounds">
-        <button class="sound-btn sel" data-sound="bell" onclick="aaSelectSound(this)">🔔 Bell</button>
-        <button class="sound-btn" data-sound="chime" onclick="aaSelectSound(this)">🎵 Chime</button>
-        <button class="sound-btn" data-sound="nature" onclick="aaSelectSound(this)">🌿 Nature</button>
-        <button class="sound-btn" data-sound="soft" onclick="aaSelectSound(this)">🎶 Soft Tone</button>
-        <button class="upload-sound-btn" onclick="document.getElementById('aa-sound-upload').click()">📎 My Sound</button>
-        <input type="file" id="aa-sound-upload" accept="audio/*" style="display:none" onchange="aaUploadSound(this)">
-      </div>
-    </div>
-
-    <div class="add-alarm-section" style="border-bottom:none">
-      <button class="auth-btn" onclick="saveAddAlarm()">💾 Save Alarm</button>
-      <div id="aa-msg" class="auth-msg" style="margin-top:10px"></div>
-    </div>
+      <!-- ── END PAGE: CONTACT ── -->     
+     <!-- </div> -->
+    </main> <!-- /.main-content -->
   </div>
-</div>
-
-<!-- ── SETTINGS MODAL ── -->
-<div id="settings-modal" class="modal-overlay" style="display:none" onclick="settingsOverlayClick(event)">
-  <div class="modal-box settings-box">
-    <div class="settings-header">
-      <div class="settings-title">⚙️ Account Settings</div>
-      <button class="add-alarm-close" onclick="closeSettings()">✕</button>
-    </div>
-
-    <!-- Avatar / info display -->
-    <div class="settings-avatar-row">
-      <div class="settings-avatar" id="st-avatar"></div>
-      <div class="settings-avatar-info">
-        <div class="settings-avatar-name" id="st-display-name"></div>
-        <div class="settings-avatar-user" id="st-display-user"></div>
-      </div>
-    </div>
-
-    <!-- Fields -->
-    <div class="settings-fields">
-
-      <div class="settings-field">
-        <label>Full Name</label>
-        <input type="text" id="st-name" class="settings-input" placeholder="Your full name" autocomplete="name">
-      </div>
-
-      <div class="settings-field">
-        <label>User ID <span class="settings-field-hint">(used to sign in)</span></label>
-        <input type="text" id="st-userid" class="settings-input" placeholder="Your user ID" autocomplete="username">
-      </div>
-
-      <div class="settings-divider"></div>
-
-      <div class="settings-field">
-        <label>Current Password <span class="settings-field-hint">(your saved password)</span></label>
-        <div class="pw-wrap">
-          <input type="text" id="st-cur-pass" class="settings-input settings-input-pass" placeholder="—" autocomplete="off" readonly>
-          <button type="button" class="pw-toggle st-copy-btn" onclick="stCopyPassword()" tabindex="-1" title="Copy">📋</button>
-        </div>
-      </div>
-
-    </div>
-
-    <div id="st-msg" class="auth-msg" style="margin:0 20px 4px"></div>
-    <!-- Sign out -->
-    <div class="settings-signout">
-      <button class="settings-signout-btn" onclick="doLogout()">↩ Sign out</button>
-    </div>
-  </div>
-</div>
-
-
-<div id="alarm-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box">
-    <div class="modal-icon" id="alarm-modal-icon">⏰</div>
-    <div class="modal-title" id="alarm-modal-title">Time to log!</div>
-    <div class="modal-sub" id="alarm-modal-sub">Your reminder is here.</div>
-    <div class="modal-btns">
-      <button class="modal-btn secondary" onclick="dismissAlarm()">Dismiss</button>
-      <button class="modal-btn primary" onclick="goLogFromAlarm()">Log now →</button>
-    </div>
-  </div>
-</div>
-</div>
-
-<!-- <script src="spttool.js" defer></script> -->
-<!-- <script src="spttool.js?v=2" defer></script> -->
-<script src="spttool.js?v=3" defer></script>
+  <!-- /#app-screen --> 
+  <script src="script.js"></script>
 </body>
 </html>
